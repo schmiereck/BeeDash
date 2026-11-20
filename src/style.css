@@ -876,3 +876,102 @@ body {
     transform: translate(-35%, -56px) scale(1.25);
   }
 }
+
+/* 3D Suitcase Stage Overlay */
+.suitcase-stage-root {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  overflow: hidden;
+}
+
+.suitcase-backdrop {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at 50% 48%,
+    rgba(255, 240, 195, 0.72) 0%,
+    rgba(116, 70, 26, 0.84) 55%,
+    rgba(45, 27, 14, 0.94) 100%
+  );
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.suitcase-canvas-wrap {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.suitcase-canvas-wrap canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.suitcase-caption-bar {
+  position: absolute;
+  top: 0.9rem;
+  left: 50%;
+  transform: translate(-50%, -14px);
+  width: min(92vw, 660px);
+  padding: 0.7rem 1.25rem;
+  border-radius: 22px;
+  border: 3px solid var(--hive-wood);
+  background: rgba(255, 248, 231, 0.94);
+  box-shadow: 0 6px 0 rgba(74, 50, 31, 0.3), 0 14px 28px rgba(34, 20, 8, 0.28);
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.45s ease, transform 0.45s ease;
+}
+
+.suitcase-caption-bar.visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.suitcase-eyebrow {
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: var(--honey-deep);
+}
+
+.suitcase-scene-title {
+  font-size: 1.28rem;
+  font-weight: 900;
+  color: var(--hive-wood);
+  margin: 0.1rem 0 0.15rem;
+}
+
+.suitcase-scene-caption {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--hive-wood-light);
+  line-height: 1.35;
+}
+
+.suitcase-actions {
+  position: absolute;
+  bottom: 1.15rem;
+  left: 50%;
+  transform: translate(-50%, 14px);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.8rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.suitcase-actions.visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, 0);
+}

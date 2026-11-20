@@ -163,4 +163,13 @@ export class CameraRig {
       angleDeg: THREE.MathUtils.radToDeg(angle)
     };
   }
+
+  projectTileToNdc(gridX: number, gridY: number): { ndcX: number; ndcY: number } {
+    const pos = new THREE.Vector3(gridX, -gridY, 0.35);
+    pos.project(this.camera);
+    return {
+      ndcX: THREE.MathUtils.clamp(pos.x, -0.9, 0.9),
+      ndcY: THREE.MathUtils.clamp(pos.y, -0.85, 0.85)
+    };
+  }
 }

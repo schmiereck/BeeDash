@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { TileType } from '../game/types';
 import {
   createBeeModel,
@@ -28,12 +29,17 @@ export type ModelKey =
 
 interface AssetManifest {
   models?: Partial<Record<ModelKey, string>>;
+  characters?: Record<string, string>;
   audio?: Record<string, string>;
 }
 
 export class AssetFactory {
   private loader = new GLTFLoader();
   private customModels = new Map<ModelKey, THREE.Object3D>();
+  private characterModels = new Map<
+    string,
+    { scene: THREE.Group; animations: THREE.AnimationClip[] }
+  >();
   private manifestAudio: Record<string, string> = {};
 
   async init(): Promise<void> {
@@ -44,18 +50,38 @@ export class AssetFactory {
       this.manifestAudio = manifest.audio ?? {};
 
       const entries = Object.entries(manifest.models ?? {}) as Array<[ModelKey, string]>;
-      await Promise.all(
-        entries.map(async ([key, url]) => {
+      const charEntries = Object.entries(manifest.characters ?? {}) as Array<[string, string]>;
+      await Promise.all([
+        ...entries.map(async ([key, url]) => {
           if (!url) return;
           try {
             const gltf = await this.loader.loadAsync(url);
             const normalized = this.normalizeLoadedModel(gltf.scene);
             this.customModels.set(key, normalized);
           } catch (err) {
-            console.warn(`Konnte 3D-Modell "${key}" (${url}) nicht laden, nutze Standardmodell.`, err);
+            console.warn(
+              `Konnte 3D-Modell "${key}" (${url}) nicht laden, nutze Standardmodell.`,
+              err
+            );
+          }
+        }),
+        ...charEntries.map(async ([key, url]) => {
+          if (!url) return;
+          try {
+            const gltf = await this.loader.loadAsync(url);
+            const normalized = this.normalizeLoadedModel(gltf.scene);
+            normalized.traverse((child) => {
+              child.userData.isCustomModel = true;
+            });
+            this.characterModels.set(key, {
+              scene: normalized,
+              animations: gltf.animations ?? []
+            });
+          } catch (err) {
+            console.warn(`Konnte Charakter-Modell "${key}" (${url}) nicht laden.`, err);
           }
         })
-      );
+      ]);
     } catch {
       // Fallback seamlessly to built-in procedural 3D models
     }
@@ -63,6 +89,22 @@ export class AssetFactory {
 
   getAudioManifest(): Record<string, string> {
     return { ...this.manifestAudio };
+  }
+
+  createCharacterModel(
+    key: string
+  ): { object: THREE.Group; animations: THREE.AnimationClip[] } | null {
+    const entry = this.characterModels.get(key);
+    if (!entry) return null;
+    const cloned = SkeletonUtils.clone(entry.scene);
+    const group = cloned instanceof THREE.Group ? cloned : new THREE.Group().add(cloned);
+    group.traverse((child) => {
+      child.userData.isCustomModel = true;
+    });
+    return {
+      object: group,
+      animations: entry.animations
+    };
   }
 
   private normalizeLoadedModel(model: THREE.Object3D): THREE.Group {

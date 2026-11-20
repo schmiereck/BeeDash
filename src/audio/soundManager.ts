@@ -9,7 +9,9 @@ export type SoundKey =
   | 'trick_1'
   | 'trick_2'
   | 'trick_3'
-  | 'sticky_clean';
+  | 'sticky_clean'
+  | 'suitcase_zoom'
+  | 'suitcase_open';
 
 const MUTE_STORAGE_KEY = 'beedash_muted_v1';
 
@@ -503,6 +505,23 @@ export class SoundManager {
         this.playTone(ctx, 783.99, 783.99, 0.14, 'triangle', 0.16, 0.2);
         this.playTone(ctx, 1046.5, 1046.5, 0.42, 'sine', 0.22, 0.3);
         break;
+      case 'suitcase_zoom':
+        // Gentle warm rising bell/pad chime as the suitcase zooms toward the player
+        this.playTone(ctx, 261.63, 392.0, 0.55, 'sine', 0.11, 0);
+        this.playTone(ctx, 329.63, 523.25, 0.52, 'triangle', 0.08, 0.04);
+        break;
+      case 'suitcase_open': {
+        // Double brass clasp snap + shimmering ascending harp glissando
+        this.playTone(ctx, 980, 620, 0.045, 'triangle', 0.09, 0);
+        this.playTone(ctx, 1120, 720, 0.045, 'triangle', 0.09, 0.07);
+        const notes = [523.25, 659.25, 783.99, 987.77, 1046.5, 1318.5, 1567.98];
+        notes.forEach((n, idx) => {
+          const delay = 0.12 + idx * 0.065;
+          this.playTone(ctx, n, n * 1.004, 0.32, 'sine', 0.09, delay);
+          this.playTone(ctx, n, n, 0.22, 'triangle', 0.04, delay);
+        });
+        break;
+      }
     }
   }
 }

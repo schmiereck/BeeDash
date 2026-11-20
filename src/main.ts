@@ -28,6 +28,7 @@ import { BoardRenderer } from './render/boardRenderer';
 import { CameraRig } from './render/cameraRig';
 import { SceneManager } from './render/sceneManager';
 import { SleepSwarmOverlay } from './render/sleepSwarmOverlay';
+import { SuitcaseStageOverlay } from './render/suitcaseStageOverlay';
 import { Dialogs } from './ui/dialogs';
 import { HiveMap } from './ui/hiveMap';
 import { HUD } from './ui/hud';
@@ -43,6 +44,7 @@ async function bootstrap(): Promise<void> {
   const dialogRootEl = document.getElementById('dialog-root')!;
   const toastEl = document.getElementById('level-toast')!;
   const sleepLockRootEl = document.getElementById('sleep-lock-root')!;
+  const suitcaseStageRootEl = document.getElementById('suitcase-stage-root')!;
 
   const assets = new AssetFactory();
   await assets.init();
@@ -52,6 +54,7 @@ async function bootstrap(): Promise<void> {
 
   const input = new InputManager();
   const dialogs = new Dialogs(dialogRootEl);
+  const suitcaseStage = new SuitcaseStageOverlay(suitcaseStageRootEl, assets);
 
   const sceneManager = new SceneManager(canvasWrapEl);
   const initialSize = sceneManager.getSize();
@@ -128,6 +131,7 @@ async function bootstrap(): Promise<void> {
     if (sleepOverlay.isActive()) return;
     settingsOpen = false;
     clearTimers();
+    suitcaseStage.stop();
     dialogs.close();
     hideToast();
     scheduler.clearPendingInput();
@@ -138,6 +142,7 @@ async function bootstrap(): Promise<void> {
 
   const returnToMap = (focusNumber?: number) => {
     clearTimers();
+    suitcaseStage.stop();
     dialogs.close();
     hideToast();
     scheduler.reset();
@@ -151,6 +156,7 @@ async function bootstrap(): Promise<void> {
 
   const startLevel = (level: LevelDefinition) => {
     clearTimers();
+    suitcaseStage.stop();
     dialogs.close();
     sounds.setMapMusicActive(false);
     sounds.play('ui_click');
@@ -293,6 +299,8 @@ async function bootstrap(): Promise<void> {
   input.onMenuNav((dir) => {
     if (dialogs.isOpen()) {
       dialogs.moveSelection(dir);
+    } else if (suitcaseStage.isActive()) {
+      suitcaseStage.moveSelection(dir);
     } else if (activeScreen === 'map') {
       hiveMap.moveSelection(dir);
     }
@@ -306,6 +314,15 @@ async function bootstrap(): Promise<void> {
         dialogs.dismiss();
       } else if (action === 'undo' && gameState?.status === 'lost' && undoStack.canUndo()) {
         performUndo();
+      }
+      return;
+    }
+
+    if (suitcaseStage.isActive()) {
+      if (action === 'confirm') {
+        suitcaseStage.confirmSelection();
+      } else if (action === 'menu') {
+        suitcaseStage.finish();
       }
       return;
     }
@@ -382,7 +399,8 @@ async function bootstrap(): Promise<void> {
     }
 
     if (activeScreen === 'game' && gameState && currentLevel) {
-      const paused = dialogs.isOpen() || gameState.status !== 'playing';
+      const paused =
+        dialogs.isOpen() || suitcaseStage.isActive() || gameState.status !== 'playing';
       let tickProgress = 1;
 
       if (paused) {
@@ -432,16 +450,29 @@ async function bootstrap(): Promise<void> {
             const newlyUnlockedNumber =
               !wasNextAlreadyUnlocked && nextLevel ? nextLevel.number : null;
 
+            const exitX = gameState.exitPos.x;
+            const exitY = gameState.exitPos.y;
+
             outcomeTimer = window.setTimeout(() => {
-              dialogs.showWin(
-                wonLevel,
-                stars,
-                wonHoney,
-                newlyUnlockedNumber,
-                () => returnToMap(wonLevel.number),
-                () => startLevel(wonLevel)
-              );
-            }, 480);
+              hideToast();
+              hud.updateExitArrow(false, null);
+              const originNdc = cameraRig.projectTileToNdc(exitX, exitY);
+              suitcaseStage.start(wonLevel, originNdc, {
+                onZoomStart: () => sounds.play('suitcase_zoom'),
+                onLidOpen: () => sounds.play('suitcase_open'),
+                onContinue: () => {
+                  sounds.play('ui_click');
+                  dialogs.showWin(
+                    wonLevel,
+                    stars,
+                    wonHoney,
+                    newlyUnlockedNumber,
+                    () => returnToMap(wonLevel.number),
+                    () => startLevel(wonLevel)
+                  );
+                }
+              });
+            }, 380);
           } else if (gameState.status === 'lost' && !outcomeHandled) {
             outcomeHandled = true;
             const lostLevel = currentLevel;
@@ -481,6 +512,10 @@ async function bootstrap(): Promise<void> {
       hud.updateExitArrow(gameState.exitOpen && gameState.status === 'playing', exitHint);
 
       sceneManager.render(cameraRig.camera);
+
+      if (suitcaseStage.isActive()) {
+        suitcaseStage.update(dt);
+      }
     }
 
     requestAnimationFrame(frame);
