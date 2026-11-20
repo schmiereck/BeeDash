@@ -1,4 +1,9 @@
-import { applyStickyHoneyHit, makeCell, stepPhysics } from './honeyPhysics';
+import {
+  applyStickyHoneyHit,
+  makeCell,
+  stepPhysics,
+  updatePressurePlates
+} from './honeyPhysics';
 import { parseLevelAscii } from './levels/parser';
 import { Direction, GameEvent, GameState, LevelDefinition } from './types';
 
@@ -43,6 +48,11 @@ export function createGameState(level: LevelDefinition): GameState {
     filledBowls: 0,
     totalBowls: parsed.totalBowls,
     gatesOpen: parsed.totalBowls === 0,
+    pressurePlates: parsed.pressurePlates.map((p) => ({ ...p, pressed: false })),
+    petalGates: parsed.petalGates.map((g) => ({ ...g })),
+    pressedPlates: 0,
+    totalPlates: parsed.pressurePlates.length,
+    petalGatesOpen: parsed.pressurePlates.length === 0,
     exitOpen: requiredFlowers === 0 && parsed.totalBees === 0,
     moves: 0,
     nextEntityId: parsed.nextEntityId,
@@ -67,6 +77,8 @@ export function cloneGameState(state: GameState): GameState {
     grid: state.grid.map((row) => row.map((cell) => ({ ...cell }))),
     player: { ...state.player },
     exitPos: { ...state.exitPos },
+    pressurePlates: state.pressurePlates.map((p) => ({ ...p })),
+    petalGates: state.petalGates.map((g) => ({ ...g })),
     sourceDripDelay: { ...state.sourceDripDelay },
     lastEvents: state.lastEvents.map((e) => ({ ...e }))
   };
@@ -259,12 +271,14 @@ export function stepGame(state: GameState, dir: Direction | null): GameEvent[] {
     }
   }
 
+  updatePressurePlates(state, events);
   rescueAdjacentFreeBees(state, events);
   updateExitOpen(state, events);
 
   if (state.status === 'playing') {
     stepPhysics(state, events, pushedThisTick);
     if (state.status === 'playing') {
+      updatePressurePlates(state, events);
       rescueAdjacentFreeBees(state, events);
       updateExitOpen(state, events);
     }

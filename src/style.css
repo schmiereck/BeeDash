@@ -366,6 +366,55 @@ body {
   min-height: 360px;
 }
 
+.world-tabs-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.55rem;
+  margin-bottom: 0.55rem;
+  width: 100%;
+}
+
+.world-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 2.5px solid var(--hive-wood);
+  border-radius: 999px;
+  padding: 0.34rem 0.85rem;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--hive-wood);
+  background: rgba(255, 253, 246, 0.88);
+  box-shadow: 0 3px 0 rgba(74, 50, 31, 0.25);
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.world-tab:hover {
+  transform: translateY(-1px);
+  background: #fff7dc;
+}
+
+.world-tab.active {
+  background: linear-gradient(180deg, #ffe27a 0%, var(--honey-gold) 100%);
+  outline: 3px solid var(--blossom-deep);
+  outline-offset: 1px;
+}
+
+.world-tab.locked {
+  opacity: 0.72;
+}
+
+.world-tab-badge {
+  background: rgba(74, 50, 31, 0.12);
+  border-radius: 999px;
+  padding: 0.08rem 0.48rem;
+  font-size: 0.8rem;
+  font-weight: 900;
+}
+
 .hive-stage {
   position: relative;
   width: 100%;

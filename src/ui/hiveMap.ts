@@ -1,3 +1,4 @@
+import { CampaignWorld } from '../game/levels/campaign';
 import { isLevelUnlocked, ProgressState } from '../game/progress';
 import { Direction, LevelDefinition } from '../game/types';
 import { parseLevelAscii } from '../game/levels/parser';
@@ -39,8 +40,10 @@ function pointyHexPoints(cx: number, cy: number, r: number): string {
 export class HiveMap {
   private container: HTMLElement;
   private levels: LevelDefinition[];
+  private worlds: CampaignWorld[];
   private assets: AssetFactory;
   private callbacks: HiveMapCallbacks;
+  private activeWorldNumber = 1;
   private selectedLevelNumber = 1;
   private progress!: ProgressState;
   private isMuted = false;
@@ -50,6 +53,7 @@ export class HiveMap {
   private shellBuilt = false;
   private hasRenderedOnce = false;
   private svgEl: SVGSVGElement | null = null;
+  private worldTabsEl: HTMLElement | null = null;
   private sideCardEl: HTMLElement | null = null;
   private muteBtnEl: HTMLButtonElement | null = null;
   private beeOverlay: MapBeeOverlay | null = null;
@@ -57,17 +61,23 @@ export class HiveMap {
   constructor(
     container: HTMLElement,
     levels: LevelDefinition[],
+    worlds: CampaignWorld[],
     assets: AssetFactory,
     callbacks: HiveMapCallbacks
   ) {
     this.container = container;
     this.levels = levels;
+    this.worlds = worlds;
     this.assets = assets;
     this.callbacks = callbacks;
     this.positions = levels.map((level) => {
       const p = axialToPixel(level.mapCoords.q, level.mapCoords.r);
       return { level, cx: p.x, cy: p.y };
     });
+  }
+
+  private getWorldForLevel(level: LevelDefinition): number {
+    return level.world ?? 1;
   }
 
   private ensureShell(): void {
@@ -97,6 +107,7 @@ export class HiveMap {
 
       <main class="map-layout">
         <section class="hive-board-card">
+          <div id="world-tabs-bar" class="world-tabs-bar"></div>
           <div class="hive-stage">
             <svg id="hive-svg" class="hive-svg" viewBox="-175 -175 540 350" aria-label="Sechseck-Bienenstock-Karte"></svg>
             <div id="map-bee-layer" class="map-bee-layer"></div>
@@ -113,6 +124,7 @@ export class HiveMap {
     `;
 
     this.svgEl = this.container.querySelector('#hive-svg');
+    this.worldTabsEl = this.container.querySelector('#world-tabs-bar');
     this.sideCardEl = this.container.querySelector('#map-side-card');
     this.muteBtnEl = this.container.querySelector('#btn-map-mute');
 
@@ -140,28 +152,85 @@ export class HiveMap {
     this.isMuted = isMuted;
 
     if (focusNumber && isLevelUnlocked(focusNumber, progress)) {
+      const targetLevel = this.levels.find((l) => l.number === focusNumber);
+      if (targetLevel) {
+        this.activeWorldNumber = this.getWorldForLevel(targetLevel);
+      }
       this.selectedLevelNumber = focusNumber;
       this.lockedNotice = '';
-    } else if (!isLevelUnlocked(this.selectedLevelNumber, progress)) {
-      this.selectedLevelNumber = Math.min(progress.unlockedUpTo, this.levels.length);
-      this.lockedNotice = '';
+    } else {
+      const currentSelected = this.levels.find((l) => l.number === this.selectedLevelNumber);
+      if (
+        !currentSelected ||
+        this.getWorldForLevel(currentSelected) !== this.activeWorldNumber
+      ) {
+        const fallback =
+          this.levels.find((l) => l.number === Math.min(progress.unlockedUpTo, this.levels.length)) ??
+          this.levels[0];
+        this.activeWorldNumber = this.getWorldForLevel(fallback);
+        this.selectedLevelNumber = fallback.number;
+        this.lockedNotice = '';
+      } else if (
+        !isLevelUnlocked(this.selectedLevelNumber, progress) &&
+        !this.lockedNotice
+      ) {
+        const fallback =
+          this.levels.find((l) => l.number === Math.min(progress.unlockedUpTo, this.levels.length)) ??
+          this.levels[0];
+        this.activeWorldNumber = this.getWorldForLevel(fallback);
+        this.selectedLevelNumber = fallback.number;
+      }
     }
 
     if (this.muteBtnEl) {
       this.muteBtnEl.textContent = isMuted ? '🔇 Ton aus' : '🔊 Ton an';
     }
 
+    if (this.worldTabsEl) {
+      this.worldTabsEl.innerHTML = this.worlds
+        .map((w) => {
+          const wLevels = this.levels.filter((l) => this.getWorldForLevel(l) === w.number);
+          const wUnlocked = wLevels.some((l) => isLevelUnlocked(l.number, progress));
+          const wDone = wLevels.filter((l) => Boolean(progress.completed[l.id])).length;
+          const isActive = w.number === this.activeWorldNumber;
+          return `
+            <button
+              class="world-tab ${isActive ? 'active' : ''} ${wUnlocked ? '' : 'locked'}"
+              data-world="${w.number}"
+              type="button"
+            >
+              <span>${w.emoji} ${w.title}</span>
+              <span class="world-tab-badge">${wUnlocked ? `${wDone}/${wLevels.length}` : '🔒'}</span>
+            </button>
+          `;
+        })
+        .join('');
+
+      this.worldTabsEl.querySelectorAll<HTMLButtonElement>('.world-tab').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const worldNum = Number(btn.dataset.world);
+          this.selectWorld(worldNum);
+        });
+      });
+    }
+
+    const worldPositions = this.positions.filter(
+      (p) => this.getWorldForLevel(p.level) === this.activeWorldNumber
+    );
+
     const selected =
-      this.levels.find((l) => l.number === this.selectedLevelNumber) ?? this.levels[0];
+      this.levels.find((l) => l.number === this.selectedLevelNumber) ??
+      worldPositions[0]?.level ??
+      this.levels[0];
     const parsed = parseLevelAscii(selected);
     const completion = progress.completed[selected.id];
     const unlocked = isLevelUnlocked(selected.number, progress);
 
-    const trailPoints = this.positions
+    const trailPoints = worldPositions
       .map((p) => `${p.cx.toFixed(1)},${p.cy.toFixed(1)}`)
       .join(' ');
 
-    const hexCellsSvg = this.positions
+    const hexCellsSvg = worldPositions
       .map(({ level, cx, cy }) => {
         const cellUnlocked = isLevelUnlocked(level.number, progress);
         const cellDone = Boolean(progress.completed[level.id]);
@@ -256,11 +325,33 @@ export class HiveMap {
     this.bindHexEvents();
 
     const selectedPos =
-      this.positions.find((p) => p.level.number === selected.number) ?? this.positions[0];
+      worldPositions.find((p) => p.level.number === selected.number) ??
+      worldPositions[0] ??
+      this.positions[0];
     const isFirstRender = !this.hasRenderedOnce;
     this.hasRenderedOnce = true;
     this.beeOverlay?.setTarget(selectedPos.cx, selectedPos.cy, isFirstRender);
     this.beeOverlay?.handleResize();
+  }
+
+  private selectWorld(worldNum: number): void {
+    if (!this.progress) return;
+    const worldLevels = this.levels.filter((l) => this.getWorldForLevel(l) === worldNum);
+    if (worldLevels.length === 0) return;
+
+    this.activeWorldNumber = worldNum;
+    const unlockedInWorld = worldLevels.filter((l) => isLevelUnlocked(l.number, this.progress));
+    if (unlockedInWorld.length > 0) {
+      const target = unlockedInWorld[unlockedInWorld.length - 1];
+      this.selectedLevelNumber = target.number;
+      this.lockedNotice = '';
+      this.callbacks.onSelectLevel(target);
+    } else {
+      const first = worldLevels[0];
+      this.selectedLevelNumber = first.number;
+      this.lockedNotice = `Schließe zuerst Wabe ${Math.min(this.progress.unlockedUpTo, this.levels.length)} ab, um diese Welt freizuschalten!`;
+    }
+    this.render(this.progress, this.isMuted);
   }
 
   private bindHexEvents(): void {
@@ -311,6 +402,7 @@ export class HiveMap {
     let bestScore = Infinity;
 
     for (const candidate of this.positions) {
+      if (this.getWorldForLevel(candidate.level) !== this.activeWorldNumber) continue;
       if (candidate.level.number === current.level.number) continue;
       if (!isLevelUnlocked(candidate.level.number, this.progress)) continue;
 
@@ -334,6 +426,19 @@ export class HiveMap {
       this.selectedLevelNumber = best.level.number;
       this.callbacks.onSelectLevel(best.level);
       this.render(this.progress, this.isMuted);
+    } else if (dir === 'right' || dir === 'left') {
+      const nextWorld = this.activeWorldNumber + (dir === 'right' ? 1 : -1);
+      const nextLevels = this.levels.filter(
+        (l) => this.getWorldForLevel(l) === nextWorld && isLevelUnlocked(l.number, this.progress)
+      );
+      if (nextLevels.length > 0) {
+        this.activeWorldNumber = nextWorld;
+        const target = dir === 'right' ? nextLevels[0] : nextLevels[nextLevels.length - 1];
+        this.lockedNotice = '';
+        this.selectedLevelNumber = target.number;
+        this.callbacks.onSelectLevel(target);
+        this.render(this.progress, this.isMuted);
+      }
     }
   }
 

@@ -1,6 +1,28 @@
 import { LevelDefinition } from '../types';
 
-export const CAMPAIGN_LEVELS: LevelDefinition[] = [
+export interface CampaignWorld {
+  number: number;
+  title: string;
+  emoji: string;
+  subtitle: string;
+}
+
+export const CAMPAIGN_WORLDS: CampaignWorld[] = [
+  {
+    number: 1,
+    emoji: '🍯',
+    title: 'Welt 1: Der gemütliche Bienenstock',
+    subtitle: 'Waben 1–12'
+  },
+  {
+    number: 2,
+    emoji: '🌸',
+    title: 'Welt 2: Der Sonnenblüten-Garten',
+    subtitle: 'Waben 13–18'
+  }
+];
+
+const RAW_CAMPAIGN_LEVELS: LevelDefinition[] = [
   {
     id: 'wabe-1',
     number: 1,
@@ -259,5 +281,142 @@ export const CAMPAIGN_LEVELS: LevelDefinition[] = [
       '#.........G....#F..E#',
       '#####################'
     ]
+  },
+  {
+    id: 'wabe-13',
+    number: 13,
+    world: 2,
+    title: 'Wiedersehen im Sonnenstock',
+    chapter: 'Kapitel 5: Der Sonnenblüten-Garten',
+    mapCoords: { q: 0, r: 0 },
+    intro: 'Willkommen in Welt 2! Schiebe den ersten Honigtopf in die Grube und lass den zweiten von der runden Wabe abrollen!',
+    tip: '1) Schiebe oben den Honigtopf nach rechts in die Grube. 2) Grabe rechts neben dem unteren Topf auf der runden Wabe beide Felder frei, damit er hinunterrollt und dir die versteckte Blüte freigibt!',
+    ascii: [
+      '#############',
+      '#P..O  #...E#',
+      '#.F.# ..###.#',
+      '#...###..F..#',
+      '#.#.#FO..##.#',
+      '#.F.##R..#B.#',
+      '#...###..#..#',
+      '#B..#..F....#',
+      '#############'
+    ]
+  },
+  {
+    id: 'wabe-14',
+    number: 14,
+    world: 2,
+    title: 'Zwei Honigquellen',
+    chapter: 'Kapitel 5: Der Sonnenblüten-Garten',
+    mapCoords: { q: 1, r: 0 },
+    intro: 'Schiebe den Honigtopf aus dem Weg und leite den goldenen Honig von oben hinunter in die Schale!',
+    tip: 'Gehe durch die Mitte nach rechts, schiebe den Honigtopf zur Seite auf den Platz neben dem Schacht und öffne dann direkt darüber den Wachspfropfen am Honigsee!',
+    ascii: [
+      '###################',
+      '#P..#S...#...S#..E#',
+      '#.F.#~~..#..~~#...#',
+      '#...###..#..###.F.#',
+      '#.#....O #....#...#',
+      '#.#...R..#....G...#',
+      '#.F.#....#.#..#.B.#',
+      '#...#..U.#.F..#...#',
+      '#B..######.##.#...#',
+      '#........F....#.F.#',
+      '###################'
+    ]
+  },
+  {
+    id: 'wabe-15',
+    number: 15,
+    world: 2,
+    title: 'Die Blüten-Druckplatte',
+    chapter: 'Kapitel 6: Blüten-Schalter & Tore',
+    mapCoords: { q: 1, r: 1 },
+    intro: 'Neu entdeckt: Eine rosa Blüten-Druckplatte! Schiebe einen schweren Honigtopf darauf, um das Blüten-Tor zu öffnen.',
+    tip: 'Schiebe den Honigtopf einfach nach rechts bis an die Steinwand auf das rosa Blüten-Kissen. Sofort geht weiter unten das Blüten-Tor auf!',
+    ascii: [
+      '#############',
+      '#P......#..E#',
+      '#.F.....#...#',
+      '#..O  D##.F.#',
+      '#.#######...#',
+      '#.......T...#',
+      '#.F...#.#.B.#',
+      '#.....#.#.F.#',
+      '#############'
+    ]
+  },
+  {
+    id: 'wabe-16',
+    number: 16,
+    world: 2,
+    title: 'Topf auf den Knopf!',
+    chapter: 'Kapitel 6: Blüten-Schalter & Tore',
+    mapCoords: { q: 0, r: 1 },
+    intro: 'Diesmal musst du den Honigtopf direkt auf den Blüten-Schalter hinunterplumpsen lassen!',
+    tip: 'Grabe zuerst den Schacht unter dem rechten Ende der oberen runden Wabe bis zur Druckplatte frei. Steige dann kurz oben neben dem Topf hoch und geh wieder zur Seite – schon rollt er genau auf den Knopf!',
+    ascii: [
+      '#############',
+      '#P...#O.#..E#',
+      '#.F..#R.#.F.#',
+      '#....#..#...#',
+      '#.##....T...#',
+      '#..#.#..###.#',
+      '#.F..#.D#...#',
+      '#....####.B.#',
+      '#############'
+    ]
+  },
+  {
+    id: 'wabe-17',
+    number: 17,
+    world: 2,
+    title: 'Schale und Blüten-Schalter',
+    chapter: 'Kapitel 6: Blüten-Schalter & Tore',
+    mapCoords: { q: -1, r: 1 },
+    intro: 'Erst öffnet goldener Honig das Honig-Tor – danach knackt ein geschobener Topf auch noch das Blüten-Tor!',
+    tip: '1) Grabe links der Honigquelle den Schacht bis zur Schale frei und stelle dich rechts vom Schacht ans Honig-Tor. 2) Dahinter wartet schon der Honigtopf vor dem rosa Blüten-Schalter!',
+    ascii: [
+      '###################',
+      '#P.#S...#....#...E#',
+      '#.F#~~..#..F.#..F.#',
+      '#..###..#....T....#',
+      '#.......G....#....#',
+      '#.F.#...#.O D#....#',
+      '#...#...######.##.#',
+      '#...##U.#....#....#',
+      '#.B...#.#.F....B..#',
+      '#.......#....#.F..#',
+      '###################'
+    ]
+  },
+  {
+    id: 'wabe-18',
+    number: 18,
+    world: 2,
+    title: 'Das große Blüten-Schloss',
+    chapter: 'Kapitel 6: Blüten-Schalter & Tore',
+    mapCoords: { q: -1, r: 0 },
+    intro: 'Zwei rosa Blüten-Druckplatten halten das große Schloss-Tor verschlossen! Nur wenn beide gedrückt sind, öffnet es sich.',
+    tip: '1) Schiebe oben links den ersten Honigtopf auf die obere Druckplatte. 2) Grabe in der Mitte den Fallschacht bis zur zweiten Druckplatte frei und lasse den Topf von der runden Wabe genau darauf fallen!',
+    ascii: [
+      '#####################',
+      '#P......#O..#S..#..E#',
+      '#.F..F..#R..#~~.#.F.#',
+      '#..O  D##...###.#...#',
+      '#.#######.......T...#',
+      '#.......#.......#...#',
+      '#.F.#...#..##...#.B.#',
+      '#...#...#.D#....#...#',
+      '#.B.#.F.####..F.#...#',
+      '#...............#B.F#',
+      '#####################'
+    ]
   }
 ];
+
+export const CAMPAIGN_LEVELS: LevelDefinition[] = RAW_CAMPAIGN_LEVELS.map((level) => ({
+  world: 1,
+  ...level
+}));

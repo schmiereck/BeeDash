@@ -178,6 +178,25 @@ export function renderLevelPreview(
         ctx.beginPath();
         ctx.arc(cx, cy, tileSize * 0.16, 0, Math.PI * 2);
         ctx.fill();
+      } else if (cell.type === 'petal_gate') {
+        ctx.strokeStyle = '#6f4324';
+        ctx.lineWidth = Math.max(1.5, tileSize * 0.1);
+        ctx.strokeRect(px + tileSize * 0.1, py + tileSize * 0.1, tileSize * 0.8, tileSize * 0.8);
+        ctx.strokeStyle = '#fff3db';
+        for (const frac of [0.35, 0.65]) {
+          ctx.beginPath();
+          ctx.moveTo(px + tileSize * frac, py + tileSize * 0.14);
+          ctx.lineTo(px + tileSize * frac, py + tileSize * 0.86);
+          ctx.stroke();
+        }
+        ctx.fillStyle = '#f46d91';
+        ctx.beginPath();
+        ctx.arc(cx, cy, tileSize * 0.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffb703';
+        ctx.beginPath();
+        ctx.arc(cx, cy, tileSize * 0.08, 0, Math.PI * 2);
+        ctx.fill();
       } else if (cell.type === 'trapped_bee') {
         ctx.fillStyle = 'rgba(255, 243, 184, 0.75)';
         ctx.beginPath();
@@ -204,6 +223,21 @@ export function renderLevelPreview(
         );
       }
     }
+  }
+
+  // Draw blossom pressure plates underneath tiles
+  for (const plate of parsed.pressurePlates) {
+    const px = originX + plate.x * tileSize;
+    const py = originY + plate.y * tileSize;
+    const cx = px + tileSize / 2;
+    ctx.fillStyle = '#6f4324';
+    ctx.fillRect(px + tileSize * 0.12, py + tileSize * 0.72, tileSize * 0.76, tileSize * 0.18);
+    ctx.fillStyle = '#f46d91';
+    ctx.fillRect(px + tileSize * 0.18, py + tileSize * 0.58, tileSize * 0.64, tileSize * 0.18);
+    ctx.fillStyle = '#ffb703';
+    ctx.beginPath();
+    ctx.arc(cx, py + tileSize * 0.66, tileSize * 0.09, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   // Draw player bee at start

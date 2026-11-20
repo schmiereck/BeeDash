@@ -1,4 +1,4 @@
-import { Cell, LevelDefinition, TileType } from '../types';
+import { Cell, GridPos, LevelDefinition, TileType } from '../types';
 import { makeCell } from '../honeyPhysics';
 
 export interface ParsedLevel {
@@ -12,6 +12,8 @@ export interface ParsedLevel {
   honeySourceCount: number;
   initialHoneyCount: number;
   totalBowls: number;
+  pressurePlates: GridPos[];
+  petalGates: GridPos[];
   nextEntityId: number;
 }
 
@@ -21,6 +23,7 @@ const CHAR_TO_TILE: Record<string, TileType> = {
   '.': 'wax',
   ' ': 'empty',
   P: 'empty',
+  D: 'empty',
   F: 'flower',
   B: 'trapped_bee',
   O: 'honeypot',
@@ -28,6 +31,7 @@ const CHAR_TO_TILE: Record<string, TileType> = {
   '~': 'honey_liquid',
   U: 'honey_bowl',
   G: 'honey_gate',
+  T: 'petal_gate',
   E: 'exit'
 };
 
@@ -51,6 +55,8 @@ export function parseLevelAscii(level: LevelDefinition): ParsedLevel {
   let honeySourceCount = 0;
   let initialHoneyCount = 0;
   let totalBowls = 0;
+  const pressurePlates: GridPos[] = [];
+  const petalGates: GridPos[] = [];
 
   const grid: Cell[][] = [];
 
@@ -84,11 +90,13 @@ export function parseLevelAscii(level: LevelDefinition): ParsedLevel {
         exitPos = { x, y };
       }
 
+      if (ch === 'D') pressurePlates.push({ x, y });
       if (tileType === 'flower') totalFlowers++;
       if (tileType === 'trapped_bee') totalBees++;
       if (tileType === 'honey_source') honeySourceCount++;
       if (tileType === 'honey_liquid') initialHoneyCount++;
       if (tileType === 'honey_bowl') totalBowls++;
+      if (tileType === 'petal_gate') petalGates.push({ x, y });
 
       const variant = (x * 7 + y * 13) % 3;
       gridRow.push(makeCell(nextEntityId++, tileType, x, y, variant));
@@ -114,6 +122,8 @@ export function parseLevelAscii(level: LevelDefinition): ParsedLevel {
     honeySourceCount,
     initialHoneyCount,
     totalBowls,
+    pressurePlates,
+    petalGates,
     nextEntityId
   };
 }

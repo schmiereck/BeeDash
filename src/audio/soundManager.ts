@@ -499,6 +499,19 @@ export class SoundManager {
         this.playTone(ctx, 659.25, 659.25, 0.14, 'sine', 0.13, 0.14);
         this.playTone(ctx, 880, 880, 0.28, 'triangle', 0.15, 0.21);
         break;
+      case 'plate_press':
+        this.playTone(ctx, 320, 480, 0.08, 'triangle', 0.13, 0);
+        this.playTone(ctx, 659.25, 880, 0.15, 'sine', 0.14, 0.05);
+        break;
+      case 'petal_gate_open':
+        this.playTone(ctx, 523.25, 523.25, 0.11, 'sine', 0.13, 0);
+        this.playTone(ctx, 659.25, 659.25, 0.11, 'sine', 0.13, 0.06);
+        this.playTone(ctx, 783.99, 783.99, 0.13, 'sine', 0.13, 0.12);
+        this.playTone(ctx, 1046.5, 1046.5, 0.25, 'triangle', 0.14, 0.18);
+        break;
+      case 'petal_gate_close':
+        this.playTone(ctx, 392, 261.63, 0.14, 'triangle', 0.1, 0);
+        break;
       case 'win':
         this.playTone(ctx, 523.25, 523.25, 0.14, 'triangle', 0.16, 0);
         this.playTone(ctx, 659.25, 659.25, 0.14, 'triangle', 0.16, 0.1);

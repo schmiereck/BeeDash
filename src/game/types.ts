@@ -12,7 +12,19 @@ export type TileType =
   | 'honey_liquid'
   | 'honey_bowl'
   | 'honey_gate'
+  | 'petal_gate'
   | 'exit';
+
+export interface GridPos {
+  x: number;
+  y: number;
+}
+
+export interface PressurePlateState {
+  x: number;
+  y: number;
+  pressed: boolean;
+}
 
 export type FallState = 'resting' | 'wobbling' | 'falling';
 
@@ -56,6 +68,9 @@ export type GameEvent =
   | { type: 'honey_collect'; x: number; y: number }
   | { type: 'bowl_fill'; x: number; y: number }
   | { type: 'gate_open'; x: number; y: number }
+  | { type: 'plate_press'; x: number; y: number }
+  | { type: 'petal_gate_open'; x: number; y: number }
+  | { type: 'petal_gate_close'; x: number; y: number }
   | { type: 'exit_open'; x: number; y: number }
   | { type: 'exit_locked'; x: number; y: number }
   | { type: 'bonk_pot'; x: number; y: number }
@@ -66,6 +81,7 @@ export type GameEvent =
 export interface LevelDefinition {
   id: string;
   number: number;
+  world?: number;
   title: string;
   chapter: string;
   mapCoords: { q: number; r: number };
@@ -96,6 +112,11 @@ export interface GameState {
   filledBowls: number;
   totalBowls: number;
   gatesOpen: boolean;
+  pressurePlates: PressurePlateState[];
+  petalGates: GridPos[];
+  pressedPlates: number;
+  totalPlates: number;
+  petalGatesOpen: boolean;
   exitOpen: boolean;
   moves: number;
   nextEntityId: number;

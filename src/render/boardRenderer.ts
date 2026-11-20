@@ -45,6 +45,7 @@ export class BoardRenderer {
 
   private assets: AssetFactory;
   private cellMeshes = new Map<number, THREE.Group>();
+  private plateMeshes = new Map<string, THREE.Group>();
   private honeyTransitions = new Map<number, HoneyTransition>();
   private honeyWobbleTime = new Map<number, number>();
   private honeyBridgeBlend = new Map<number, HoneyBridgeState>();
@@ -188,6 +189,26 @@ export class BoardRenderer {
       }
     }
 
+    // Sync persistent blossom pressure plates under tiles
+    const activePlateKeys = new Set<string>();
+    for (const plate of state.pressurePlates) {
+      const key = `${plate.x},${plate.y}`;
+      activePlateKeys.add(key);
+      if (!this.plateMeshes.has(key)) {
+        const plateObj = this.assets.createPressurePlate();
+        plateObj.position.set(plate.x, -plate.y, 0);
+        this.plateMeshes.set(key, plateObj);
+        this.group.add(plateObj);
+      }
+    }
+    for (const [key, plateObj] of this.plateMeshes.entries()) {
+      if (!activePlateKeys.has(key)) {
+        this.group.remove(plateObj);
+        this.disposeProceduralObj(plateObj);
+        this.plateMeshes.delete(key);
+      }
+    }
+
     // Emit particles for tick events
     for (const ev of events) {
       switch (ev.type) {
@@ -238,6 +259,12 @@ export class BoardRenderer {
           break;
         case 'gate_open':
           this.particles.emitGateOpen(ev.x, ev.y);
+          break;
+        case 'plate_press':
+          this.particles.emitPlatePress(ev.x, ev.y);
+          break;
+        case 'petal_gate_open':
+          this.particles.emitPetalGateOpen(ev.x, ev.y);
           break;
         case 'exit_open':
           this.particles.emitExitOpen(ev.x, ev.y);
@@ -700,13 +727,40 @@ export class BoardRenderer {
               fillGroup.scale.setScalar(0.01);
             }
           }
-        } else if (cell.type === 'honey_gate') {
+        } else if (cell.type === 'honey_gate' || cell.type === 'petal_gate') {
           const { crestMesh } = obj.userData as { crestMesh?: THREE.Object3D };
           if (crestMesh) {
             const p = 1 + Math.sin(this.elapsed * 2.8 + cell.id) * 0.06;
             crestMesh.scale.setScalar(p);
           }
         }
+      }
+    }
+
+    for (const plate of state.pressurePlates) {
+      const plateObj = this.plateMeshes.get(`${plate.x},${plate.y}`);
+      if (!plateObj) continue;
+      const { padGroup, glowMat } = plateObj.userData as {
+        padGroup?: THREE.Group;
+        glowMat?: THREE.MeshStandardMaterial;
+      };
+      if (padGroup) {
+        const targetY = plate.pressed ? -0.425 : -0.37;
+        padGroup.position.y = THREE.MathUtils.lerp(
+          padGroup.position.y,
+          targetY,
+          Math.min(1, dt * 16)
+        );
+      }
+      if (glowMat) {
+        const targetEmissive = plate.pressed
+          ? 0.72 + Math.sin(this.elapsed * 5) * 0.14
+          : 0.2 + Math.sin(this.elapsed * 2.4) * 0.08;
+        glowMat.emissiveIntensity = THREE.MathUtils.lerp(
+          glowMat.emissiveIntensity,
+          targetEmissive,
+          Math.min(1, dt * 12)
+        );
       }
     }
 
@@ -1127,6 +1181,11 @@ export class BoardRenderer {
       this.disposeProceduralObj(obj);
     }
     this.cellMeshes.clear();
+    for (const plateObj of this.plateMeshes.values()) {
+      this.group.remove(plateObj);
+      this.disposeProceduralObj(plateObj);
+    }
+    this.plateMeshes.clear();
     this.honeyTransitions.clear();
     this.honeyWobbleTime.clear();
     this.honeyBridgeBlend.clear();

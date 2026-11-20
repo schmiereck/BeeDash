@@ -45,6 +45,8 @@ export function validateLevel(level: LevelDefinition): ValidationResult {
     totalFlowers,
     totalBees,
     totalBowls,
+    pressurePlates,
+    petalGates,
     honeySourceCount,
     initialHoneyCount
   } = parsed;
@@ -238,6 +240,30 @@ export function validateLevel(level: LevelDefinition): ValidationResult {
             if (!visited[gy][gx] && grid[gy][gx].type === 'honey_gate') {
               visited[gy][gx] = true;
               queue.push({ x: gx, y: gy });
+              progress = true;
+            }
+          }
+        }
+      }
+    }
+
+    // Check whether all blossom pressure plates can be pressed by reachable honeypots
+    if (petalGates.length > 0 && pressurePlates.length > 0) {
+      const allPlatesReachable = pressurePlates.every((p) => visited[p.y][p.x]);
+      if (allPlatesReachable) {
+        let reachablePots = 0;
+        for (let py = 1; py < height - 1; py++) {
+          for (let px = 1; px < width - 1; px++) {
+            if (visited[py][px] && grid[py][px].type === 'honeypot') {
+              reachablePots++;
+            }
+          }
+        }
+        if (reachablePots >= pressurePlates.length) {
+          for (const g of petalGates) {
+            if (!visited[g.y][g.x]) {
+              visited[g.y][g.x] = true;
+              queue.push({ x: g.x, y: g.y });
               progress = true;
             }
           }

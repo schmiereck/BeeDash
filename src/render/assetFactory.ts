@@ -10,6 +10,8 @@ import {
   createHoneyPotModel,
   createHoneySourceModel,
   createLiquidHoneyModel,
+  createPetalGateModel,
+  createPressurePlateModel,
   createSuitcaseModel,
   createTrappedBeeModel,
   createWallModel,
@@ -154,6 +156,10 @@ export class AssetFactory {
     return createBeeModel(0.78);
   }
 
+  createPressurePlate(): THREE.Group {
+    return createPressurePlateModel();
+  }
+
   createTileObject(type: TileType, variant = 0): THREE.Group | null {
     const keyMap: Partial<Record<TileType, ModelKey>> = {
       honeypot: 'honeypot',
@@ -195,6 +201,8 @@ export class AssetFactory {
         return createHoneyBowlModel();
       case 'honey_gate':
         return createHoneyGateModel();
+      case 'petal_gate':
+        return createPetalGateModel();
       case 'exit':
         return createSuitcaseModel();
       case 'empty':

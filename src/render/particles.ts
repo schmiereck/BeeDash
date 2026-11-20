@@ -127,6 +127,24 @@ export class ParticleSystem {
     this.spawnBurst(gridX, -gridY, 0.42, 18, [0xffe066, 0x6ac266, 0xa7e49e, 0xffffff], 3.4, 1.4, 0.88, 1.15);
   }
 
+  emitPlatePress(gridX: number, gridY: number): void {
+    this.spawnBurst(gridX, -gridY - 0.15, 0.36, 12, [0xf46d91, 0xffb3c8, 0xffe066], 2.7, 2.2, 0.65, 0.95);
+  }
+
+  emitPetalGateOpen(gridX: number, gridY: number): void {
+    this.spawnBurst(
+      gridX,
+      -gridY,
+      0.42,
+      18,
+      [0xf46d91, 0xfff3db, 0x98df82, 0xffe066],
+      3.5,
+      1.3,
+      0.88,
+      1.15
+    );
+  }
+
   update(dt: number): void {
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];

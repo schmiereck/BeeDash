@@ -113,6 +113,49 @@ export function openHoneyGatesIfReady(state: GameState, events: GameEvent[]): vo
   }
 }
 
+export function updatePressurePlates(state: GameState, events: GameEvent[]): void {
+  if (state.totalPlates === 0) return;
+
+  let pressedCount = 0;
+  for (const plate of state.pressurePlates) {
+    const cell = state.grid[plate.y]?.[plate.x];
+    const nowPressed = Boolean(
+      cell &&
+        cell.type === 'honeypot' &&
+        (cell.fallState === 'resting' || cell.fallState === 'wobbling')
+    );
+    if (nowPressed && !plate.pressed) {
+      events.push({ type: 'plate_press', x: plate.x, y: plate.y });
+    }
+    plate.pressed = nowPressed;
+    if (nowPressed) pressedCount++;
+  }
+  state.pressedPlates = pressedCount;
+
+  if (pressedCount >= state.totalPlates && !state.petalGatesOpen) {
+    state.petalGatesOpen = true;
+    for (const pos of state.petalGates) {
+      if (state.grid[pos.y]?.[pos.x]?.type === 'petal_gate') {
+        state.grid[pos.y][pos.x] = makeCell(state.nextEntityId++, 'empty', pos.x, pos.y);
+        events.push({ type: 'petal_gate_open', x: pos.x, y: pos.y });
+      }
+    }
+  } else if (pressedCount < state.totalPlates && state.petalGatesOpen) {
+    const allClear = state.petalGates.every(
+      (pos) =>
+        state.grid[pos.y]?.[pos.x]?.type === 'empty' &&
+        !(state.player.x === pos.x && state.player.y === pos.y)
+    );
+    if (allClear) {
+      state.petalGatesOpen = false;
+      for (const pos of state.petalGates) {
+        state.grid[pos.y][pos.x] = makeCell(state.nextEntityId++, 'petal_gate', pos.x, pos.y);
+        events.push({ type: 'petal_gate_close', x: pos.x, y: pos.y });
+      }
+    }
+  }
+}
+
 function moveCell(state: GameState, fromX: number, fromY: number, toX: number, toY: number): void {
   const cell = state.grid[fromY][fromX];
   cell.prevX = fromX;

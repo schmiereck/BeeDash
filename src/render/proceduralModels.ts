@@ -119,7 +119,15 @@ const SHARED_MATERIALS = {
     new THREE.MeshStandardMaterial({ color: 0xffd54f, roughness: 0.5 }), // Sonnenblume
     new THREE.MeshStandardMaterial({ color: 0xf89cb0, roughness: 0.5 }), // Kirschblüte
     new THREE.MeshStandardMaterial({ color: 0xfff8f0, roughness: 0.5 }) // Gänseblümchen
-  ]
+  ],
+  petalGatePink: new THREE.MeshStandardMaterial({
+    color: 0xf46d91,
+    roughness: 0.42
+  }),
+  petalBarCream: new THREE.MeshStandardMaterial({
+    color: 0xfff3db,
+    roughness: 0.5
+  })
 };
 
 const HONEY_SHARED_GEOS = {
@@ -1076,6 +1084,154 @@ export function createHoneyGateModel(): THREE.Group {
   sealDrop.position.set(0, -0.01, 0.05);
   sealDrop.scale.set(0.095, 0.125, 0.07);
   crestMesh.add(sealDrop);
+
+  root.add(crestMesh);
+
+  root.userData = { crestMesh };
+  enableShadows(root, true, true);
+  return root;
+}
+
+function createBlossomEmblem(petalMat: THREE.Material, centerMat: THREE.Material): THREE.Group {
+  const emblem = new THREE.Group();
+  const center = new THREE.Mesh(new THREE.SphereGeometry(0.065, 10, 8), centerMat);
+  center.scale.z = 0.65;
+  emblem.add(center);
+
+  const petalGeo = new THREE.SphereGeometry(0.06, 8, 8);
+  for (let i = 0; i < 6; i++) {
+    const angle = (i / 6) * Math.PI * 2;
+    const petal = new THREE.Mesh(petalGeo, petalMat);
+    petal.scale.set(0.85, 1.25, 0.48);
+    petal.position.set(Math.cos(angle) * 0.105, Math.sin(angle) * 0.105, -0.01);
+    petal.rotation.z = angle - Math.PI / 2;
+    emblem.add(petal);
+  }
+  return emblem;
+}
+
+export function createPressurePlateModel(): THREE.Group {
+  const root = new THREE.Group();
+  const disposableMaterials: THREE.Material[] = [];
+
+  // Wooden base anchored cleanly at the bottom of the tile
+  const base = new THREE.Mesh(
+    new THREE.BoxGeometry(0.84, 0.08, 0.72),
+    SHARED_MATERIALS.wallWood
+  );
+  base.position.set(0, -0.45, 0);
+  root.add(base);
+
+  const rim = new THREE.Mesh(
+    new THREE.BoxGeometry(0.88, 0.04, 0.76),
+    SHARED_MATERIALS.brass
+  );
+  rim.position.set(0, -0.42, 0);
+  root.add(rim);
+
+  // Glowing pink cushion pad that depresses when a honeypot rests on it
+  const glowMat = new THREE.MeshStandardMaterial({
+    color: 0xf46d91,
+    emissive: 0xd65a72,
+    emissiveIntensity: 0.25,
+    roughness: 0.38
+  });
+  disposableMaterials.push(glowMat);
+
+  const padGroup = new THREE.Group();
+  padGroup.position.set(0, -0.37, 0);
+
+  const padPlate = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.34, 0.08, 12), glowMat);
+  padGroup.add(padPlate);
+
+  const topDot = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.14, 0.14, 0.02, 12),
+    SHARED_MATERIALS.flowerCenter
+  );
+  topDot.position.y = 0.045;
+  padGroup.add(topDot);
+  root.add(padGroup);
+
+  // Back-wall blossom medallion visible even when a honeypot sits on the plate
+  const backPlate = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.24, 0.24, 0.04, 16),
+    SHARED_MATERIALS.wallTrim
+  );
+  backPlate.rotation.x = Math.PI / 2;
+  backPlate.position.set(0, 0.12, -0.32);
+  root.add(backPlate);
+
+  const wallBlossom = createBlossomEmblem(glowMat, SHARED_MATERIALS.flowerCenter);
+  wallBlossom.position.set(0, 0.12, -0.28);
+  root.add(wallBlossom);
+
+  root.userData = { padGroup, glowMat, disposableMaterials };
+  enableShadows(root, true, true);
+  return root;
+}
+
+export function createPetalGateModel(): THREE.Group {
+  const root = new THREE.Group();
+
+  const topBar = new THREE.Mesh(
+    new THREE.BoxGeometry(0.96, 0.14, 0.64),
+    SHARED_MATERIALS.wallWood
+  );
+  topBar.position.y = 0.42;
+  root.add(topBar);
+
+  const bottomBar = new THREE.Mesh(
+    new THREE.BoxGeometry(0.96, 0.12, 0.64),
+    SHARED_MATERIALS.wallWood
+  );
+  bottomBar.position.y = -0.43;
+  root.add(bottomBar);
+
+  for (const sx of [-0.42, 0.42]) {
+    const post = new THREE.Mesh(
+      new THREE.BoxGeometry(0.12, 0.96, 0.64),
+      SHARED_MATERIALS.wallWood
+    );
+    post.position.x = sx;
+    root.add(post);
+  }
+
+  for (const bx of [-0.24, -0.08, 0.08, 0.24]) {
+    const bar = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.04, 0.04, 0.82, 10),
+      SHARED_MATERIALS.petalBarCream
+    );
+    bar.position.x = bx;
+    root.add(bar);
+  }
+
+  for (let i = 0; i < 2; i++) {
+    const vine = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.03, 0.03, 0.86, 8),
+      SHARED_MATERIALS.stemGreen
+    );
+    vine.rotation.z = Math.PI / 2 + (i === 0 ? 0.22 : -0.22);
+    vine.position.set(0, i === 0 ? 0.18 : -0.18, 0.12);
+    root.add(vine);
+  }
+
+  const crestMesh = new THREE.Group();
+  crestMesh.position.set(0, 0, 0.22);
+
+  const sealPlate = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.21, 0.21, 0.07, 16),
+    SHARED_MATERIALS.brass
+  );
+  sealPlate.rotation.x = Math.PI / 2;
+  crestMesh.add(sealPlate);
+
+  const sealFlower = createBlossomEmblem(
+    SHARED_MATERIALS.petalGatePink,
+    SHARED_MATERIALS.flowerCenter
+  );
+  sealFlower.position.set(0, 0, 0.06);
+  sealFlower.scale.setScalar(1.08);
+  crestMesh.add(sealFlower);
 
   root.add(crestMesh);
 

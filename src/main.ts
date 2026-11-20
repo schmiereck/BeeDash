@@ -6,7 +6,7 @@ import {
   tickStickyTimer,
   willDirectionChangeState
 } from './game/engine';
-import { CAMPAIGN_LEVELS } from './game/levels/campaign';
+import { CAMPAIGN_LEVELS, CAMPAIGN_WORLDS } from './game/levels/campaign';
 import {
   completeLevel,
   loadProgress,
@@ -219,7 +219,7 @@ async function bootstrap(): Promise<void> {
     });
   };
 
-  const hiveMap = new HiveMap(mapScreenEl, CAMPAIGN_LEVELS, assets, {
+  const hiveMap = new HiveMap(mapScreenEl, CAMPAIGN_LEVELS, CAMPAIGN_WORLDS, assets, {
     onSelectLevel: () => {
       sounds.play('bee_move');
     },
@@ -467,7 +467,7 @@ async function bootstrap(): Promise<void> {
                     stars,
                     wonHoney,
                     newlyUnlockedNumber,
-                    () => returnToMap(wonLevel.number),
+                    () => returnToMap(newlyUnlockedNumber ?? wonLevel.number),
                     () => startLevel(wonLevel)
                   );
                 }
