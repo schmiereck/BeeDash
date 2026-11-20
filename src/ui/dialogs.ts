@@ -506,15 +506,21 @@ export class Dialogs {
   showSettings(
     settings: GameSettings,
     elapsedMs: number,
+    progressInfo: { completedCount: number; unlockedUpTo: number; totalLevels: number },
     callbacks: {
       onChangeLimit: (minutes: number) => void;
       onResetTimer: () => void;
       onPreviewSleep: () => void;
+      onResetProgress: () => void;
       onClose: () => void;
     }
   ): void {
     let currentLimit = settings.playtimeLimitMinutes;
     let currentElapsedMs = elapsedMs;
+    let completedCount = progressInfo.completedCount;
+    let unlockedUpTo = progressInfo.unlockedUpTo;
+    let confirmingProgressReset = false;
+    let progressResetDone = false;
 
     const formatElapsed = (ms: number) => {
       const totalSec = Math.floor(ms / 1000);
@@ -530,6 +536,33 @@ export class Dialogs {
         return `<button class="btn btn-secondary btn-compact ${active}" data-mins="${mins}" type="button">${label}</button>`;
       }).join('');
 
+      const hasProgress = unlockedUpTo > 1 || completedCount > 0;
+      const progressSection = confirmingProgressReset
+        ? `
+          <div class="settings-confirm-box">
+            <div class="settings-confirm-title">Wirklich zurücksetzen?</div>
+            <div class="settings-confirm-text">
+              Alle geschafften Waben und Sterne werden gelöscht und es geht wieder bei Wabe 1 los.
+            </div>
+            <div class="settings-confirm-actions">
+              <button id="settings-reset-progress-confirm" class="btn btn-danger btn-compact" type="button">Ja, zurücksetzen</button>
+              <button id="settings-reset-progress-cancel" class="btn btn-secondary btn-compact" type="button">Abbrechen</button>
+            </div>
+          </div>
+        `
+        : `
+          ${
+            progressResetDone
+              ? '<div class="settings-reset-done">✅ Level-Fortschritt zurückgesetzt – wieder bei Wabe 1!</div>'
+              : ''
+          }
+          <div style="display:flex; justify-content:center; margin-top:0.55rem;">
+            <button id="settings-reset-progress" class="btn btn-secondary btn-compact" type="button" ${
+              hasProgress ? '' : 'disabled'
+            }>🗑️ Level-Fortschritt zurücksetzen</button>
+          </div>
+        `;
+
       this.openCard(
         `
           <div class="dialog-emoji">⚙️🐝</div>
@@ -543,6 +576,12 @@ export class Dialogs {
             <button id="settings-reset-timer" class="btn btn-secondary btn-compact" type="button">⏱️ Spielzeit zurücksetzen</button>
             <button id="settings-preview-sleep" class="btn btn-pink btn-compact" type="button">🎬 Pausen-Animation testen</button>
           </div>
+          <hr class="settings-divider" />
+          <p style="font-weight:800; margin:0.25rem 0;">Spielfortschritt:</p>
+          <div class="stat-chip" style="display:inline-block; margin:0.2rem 0;">
+            ${completedCount} von ${progressInfo.totalLevels} Waben geschafft
+          </div>
+          ${progressSection}
         `,
         [
           {
@@ -565,6 +604,7 @@ export class Dialogs {
         btn.addEventListener('click', () => {
           const mins = Number(btn.dataset.mins);
           currentLimit = mins;
+          confirmingProgressReset = false;
           callbacks.onChangeLimit(mins);
           renderSettings();
         });
@@ -572,6 +612,7 @@ export class Dialogs {
 
       this.root.querySelector('#settings-reset-timer')?.addEventListener('click', () => {
         currentElapsedMs = 0;
+        confirmingProgressReset = false;
         callbacks.onResetTimer();
         renderSettings();
       });
@@ -579,6 +620,26 @@ export class Dialogs {
       this.root.querySelector('#settings-preview-sleep')?.addEventListener('click', () => {
         this.close();
         callbacks.onPreviewSleep();
+      });
+
+      this.root.querySelector('#settings-reset-progress')?.addEventListener('click', () => {
+        confirmingProgressReset = true;
+        progressResetDone = false;
+        renderSettings();
+      });
+
+      this.root.querySelector('#settings-reset-progress-cancel')?.addEventListener('click', () => {
+        confirmingProgressReset = false;
+        renderSettings();
+      });
+
+      this.root.querySelector('#settings-reset-progress-confirm')?.addEventListener('click', () => {
+        callbacks.onResetProgress();
+        completedCount = 0;
+        unlockedUpTo = 1;
+        confirmingProgressReset = false;
+        progressResetDone = true;
+        renderSettings();
       });
     };
 

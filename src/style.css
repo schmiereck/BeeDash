@@ -101,6 +101,11 @@ body {
   background: linear-gradient(180deg, #a7e49e 0%, #6ac266 100%);
 }
 
+.btn-danger {
+  background: linear-gradient(180deg, #ff9aa8 0%, #e05368 100%);
+  color: #fffdf6;
+}
+
 .btn-compact {
   padding: 0.4rem 0.85rem;
   font-size: 0.92rem;
@@ -728,6 +733,48 @@ body {
   background: linear-gradient(180deg, #ffe27a 0%, var(--honey-gold) 100%) !important;
   outline: 3.5px solid var(--blossom-deep);
   outline-offset: 2px;
+}
+
+.settings-divider {
+  border: none;
+  border-top: 2px dashed rgba(74, 50, 31, 0.25);
+  margin: 0.9rem 0 0.7rem;
+}
+
+.settings-confirm-box {
+  margin-top: 0.6rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 16px;
+  border: 2.5px solid var(--blossom-deep);
+  background: #fff1f3;
+}
+
+.settings-confirm-title {
+  font-weight: 900;
+  font-size: 1rem;
+  color: var(--hive-wood);
+  margin-bottom: 0.2rem;
+}
+
+.settings-confirm-text {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--hive-wood-light);
+  margin-bottom: 0.6rem;
+}
+
+.settings-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.settings-reset-done {
+  margin-top: 0.5rem;
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: var(--leaf-green);
 }
 
 /* Sleep Break Swarm Overlay */

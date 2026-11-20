@@ -10,7 +10,8 @@ import { CAMPAIGN_LEVELS } from './game/levels/campaign';
 import {
   completeLevel,
   loadProgress,
-  ProgressState
+  ProgressState,
+  resetProgress
 } from './game/progress';
 import {
   GameSettings,
@@ -228,25 +229,40 @@ async function bootstrap(): Promise<void> {
     onOpenSettings: () => {
       sounds.play('ui_click');
       settingsOpen = true;
-      dialogs.showSettings(settings, sessionElapsedMs, {
-        onChangeLimit: (minutes) => {
-          settings = { ...settings, playtimeLimitMinutes: minutes };
-          saveSettings(settings);
-          sounds.play('ui_click');
+      dialogs.showSettings(
+        settings,
+        sessionElapsedMs,
+        {
+          completedCount: Object.keys(progress.completed).length,
+          unlockedUpTo: progress.unlockedUpTo,
+          totalLevels: CAMPAIGN_LEVELS.length
         },
-        onResetTimer: () => {
-          sessionElapsedMs = 0;
-          sounds.play('ui_click');
-        },
-        onPreviewSleep: () => {
-          settingsOpen = false;
-          enterSleepLock();
-        },
-        onClose: () => {
-          settingsOpen = false;
-          sounds.play('ui_click');
+        {
+          onChangeLimit: (minutes) => {
+            settings = { ...settings, playtimeLimitMinutes: minutes };
+            saveSettings(settings);
+            sounds.play('ui_click');
+          },
+          onResetTimer: () => {
+            sessionElapsedMs = 0;
+            sounds.play('ui_click');
+          },
+          onPreviewSleep: () => {
+            settingsOpen = false;
+            enterSleepLock();
+          },
+          onResetProgress: () => {
+            progress = resetProgress();
+            currentLevel = null;
+            sounds.play('ui_click');
+            refreshMap(1);
+          },
+          onClose: () => {
+            settingsOpen = false;
+            sounds.play('ui_click');
+          }
         }
-      });
+      );
     },
     onToggleMute: () => {
       sounds.toggleMute();

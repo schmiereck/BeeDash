@@ -141,8 +141,10 @@ export class HiveMap {
 
     if (focusNumber && isLevelUnlocked(focusNumber, progress)) {
       this.selectedLevelNumber = focusNumber;
+      this.lockedNotice = '';
     } else if (!isLevelUnlocked(this.selectedLevelNumber, progress)) {
       this.selectedLevelNumber = Math.min(progress.unlockedUpTo, this.levels.length);
+      this.lockedNotice = '';
     }
 
     if (this.muteBtnEl) {
