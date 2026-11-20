@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BeeDash – Frau Honigs kleines Bienen-Abenteuer</title>
+  </head>
+  <body>
+    <div id="app">
+      <!-- 3D Spielfeld-Container -->
+      <div id="game-screen" class="screen hidden">
+        <div id="game-canvas-wrap"></div>
+        <div id="hud-root"></div>
+        <div id="level-toast" class="level-toast hidden" aria-live="polite"></div>
+      </div>
+
+      <!-- Sechseck-Bienenstock-Karte -->
+      <div id="map-screen" class="screen"></div>
+
+      <!-- Modale Dialoge & Overlays -->
+      <div id="dialog-root" class="dialog-root hidden"></div>
+
+      <!-- Freundliche Spielpause / Schlaf-Schwarm-Animation -->
+      <div id="sleep-lock-root" class="sleep-lock-root hidden"></div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
