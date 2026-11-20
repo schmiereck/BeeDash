@@ -9,6 +9,7 @@ export interface SuitcaseSceneRuntime {
   ambientLightColor: number;
   accentLightColor: number;
   ownedMaterials: THREE.Material[];
+  ownedTextures?: THREE.Texture[];
   mixers?: THREE.AnimationMixer[];
   update: (sceneTime: number, dt: number, revealProgress: number) => void;
 }
@@ -24,6 +25,52 @@ export interface SuitcaseSceneDefinition {
 function trackMat<T extends THREE.Material>(owned: THREE.Material[], mat: T): T {
   owned.push(mat);
   return mat;
+}
+
+export function createMagicGlowTexture(): THREE.CanvasTexture | null {
+  if (typeof document === 'undefined') return null;
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  const cx = size / 2;
+  const cy = size / 2;
+
+  // Soft spherical bloom core + warm golden halo
+  const halo = ctx.createRadialGradient(cx, cy, 0, cx, cy, size * 0.48);
+  halo.addColorStop(0.0, 'rgba(255, 255, 255, 1.0)');
+  halo.addColorStop(0.18, 'rgba(255, 250, 224, 0.92)');
+  halo.addColorStop(0.45, 'rgba(255, 224, 130, 0.38)');
+  halo.addColorStop(0.76, 'rgba(255, 195, 75, 0.08)');
+  halo.addColorStop(1.0, 'rgba(255, 180, 40, 0.0)');
+  ctx.fillStyle = halo;
+  ctx.fillRect(0, 0, size, size);
+
+  // Feathered 4-point starlight cross fading smoothly to zero before canvas edges
+  for (const [sx, sy] of [
+    [1.0, 0.14],
+    [0.14, 1.0]
+  ] as const) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(sx, sy);
+    const ray = ctx.createRadialGradient(0, 0, 0, 0, 0, size * 0.44);
+    ray.addColorStop(0.0, 'rgba(255, 255, 255, 0.65)');
+    ray.addColorStop(0.4, 'rgba(255, 245, 200, 0.22)');
+    ray.addColorStop(1.0, 'rgba(255, 240, 180, 0.0)');
+    ctx.fillStyle = ray;
+    ctx.beginPath();
+    ctx.arc(0, 0, size * 0.44, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  return texture;
 }
 
 function easeOutBack(t: number): number {
@@ -610,6 +657,9 @@ function buildTeaPartyScene(assets: AssetFactory): SuitcaseSceneRuntime {
 function buildBeeHeartScene(assets: AssetFactory): SuitcaseSceneRuntime {
   const root = new THREE.Group();
   const owned: THREE.Material[] = [];
+  const ownedTextures: THREE.Texture[] = [];
+  const glowTex = createMagicGlowTexture();
+  if (glowTex) ownedTextures.push(glowTex);
 
   // Giant golden honey pot centerpiece
   const heroPot = createHoneyPotModel();
@@ -626,21 +676,21 @@ function buildBeeHeartScene(assets: AssetFactory): SuitcaseSceneRuntime {
     root.add(fl);
   }
 
-  // Sparkling golden heart dust trail behind bees
+  // Soft glowing golden fairy-dust trail along the heart
   const heartDustMat = trackMat(
     owned,
-    new THREE.MeshBasicMaterial({
-      color: 0xffe46b,
+    new THREE.SpriteMaterial({
+      map: glowTex,
+      color: 0xffe67a,
       transparent: true,
-      opacity: 0.78,
+      opacity: 0.92,
       depthWrite: false,
       blending: THREE.AdditiveBlending
     })
   );
-  const dustGeo = new THREE.OctahedronGeometry(0.055, 0);
-  const heartDust: THREE.Mesh[] = [];
+  const heartDust: THREE.Sprite[] = [];
   for (let i = 0; i < 16; i++) {
-    const dot = new THREE.Mesh(dustGeo, heartDustMat);
+    const dot = new THREE.Sprite(heartDustMat);
     dot.userData = { index: i };
     root.add(dot);
     heartDust.push(dot);
@@ -674,6 +724,7 @@ function buildBeeHeartScene(assets: AssetFactory): SuitcaseSceneRuntime {
     ambientLightColor: 0xfff9e6,
     accentLightColor: 0xffae24,
     ownedMaterials: owned,
+    ownedTextures,
     update: (sceneTime, _dt, reveal) => {
       const potPop = easeOutBack(Math.min(1, reveal * 1.25));
       heroPot.scale.setScalar(1.42 * potPop);
@@ -706,8 +757,8 @@ function buildBeeHeartScene(assets: AssetFactory): SuitcaseSceneRuntime {
         const tCurve = (idx / heartDust.length) * Math.PI * 2 - sceneTime * 0.25;
         const [hx, hy] = heartPoint(tCurve, pulse * 1.03);
         dot.position.set(hx, hy, Math.sin(sceneTime * 2 + idx) * 0.08);
-        dot.rotation.y = sceneTime * 2 + idx;
-        dot.scale.setScalar((0.7 + Math.sin(sceneTime * 4 + idx) * 0.35) * formBlend);
+        const s = (0.24 + Math.sin(sceneTime * 4.2 + idx) * 0.11) * formBlend;
+        dot.scale.setScalar(s);
         dot.visible = formBlend > 0.25;
       });
     }
@@ -1141,15 +1192,23 @@ function buildFireflyNightScene(assets: AssetFactory): SuitcaseSceneRuntime {
   moonGroup.add(moonArc);
   root.add(moonGroup);
 
-  // Twinkling stars
+  // Soft glowing twinkling stars
+  const nightGlowTex = createMagicGlowTexture();
+  const ownedTextures: THREE.Texture[] = nightGlowTex ? [nightGlowTex] : [];
   const starMat = trackMat(
     owned,
-    new THREE.MeshBasicMaterial({ color: 0xfff4b8 })
+    new THREE.SpriteMaterial({
+      map: nightGlowTex,
+      color: 0xfff6c8,
+      transparent: true,
+      opacity: 0.94,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    })
   );
-  const starGeo = new THREE.OctahedronGeometry(0.065, 0);
-  const stars: THREE.Mesh[] = [];
+  const stars: THREE.Sprite[] = [];
   for (let i = 0; i < 14; i++) {
-    const st = new THREE.Mesh(starGeo, starMat);
+    const st = new THREE.Sprite(starMat);
     st.position.set(
       -2.25 + ((i * 1.37) % 4.5),
       1.65 + ((i * 0.43) % 1.25),
@@ -1163,18 +1222,18 @@ function buildFireflyNightScene(assets: AssetFactory): SuitcaseSceneRuntime {
   // 20 warm glowing fireflies weaving lazy figure-eights
   const fireflyMat = trackMat(
     owned,
-    new THREE.MeshBasicMaterial({
+    new THREE.SpriteMaterial({
+      map: nightGlowTex,
       color: 0xffe46b,
       transparent: true,
-      opacity: 0.92,
+      opacity: 0.96,
       blending: THREE.AdditiveBlending,
       depthWrite: false
     })
   );
-  const fireflyGeo = new THREE.SphereGeometry(0.048, 8, 8);
-  const fireflies: THREE.Mesh[] = [];
+  const fireflies: THREE.Sprite[] = [];
   for (let i = 0; i < 20; i++) {
-    const ff = new THREE.Mesh(fireflyGeo, fireflyMat);
+    const ff = new THREE.Sprite(fireflyMat);
     ff.userData = {
       cx: -1.9 + ((i * 0.79) % 3.8),
       cy: 0.55 + ((i * 0.33) % 1.45),
@@ -1200,6 +1259,7 @@ function buildFireflyNightScene(assets: AssetFactory): SuitcaseSceneRuntime {
     ambientLightColor: 0x9ab0ff,
     accentLightColor: 0xffd166,
     ownedMaterials: owned,
+    ownedTextures,
     update: (sceneTime, _dt, reveal) => {
       const pop = easeOutBack(Math.min(1, reveal * 1.2));
       bench.scale.setScalar(pop);
@@ -1212,8 +1272,7 @@ function buildFireflyNightScene(assets: AssetFactory): SuitcaseSceneRuntime {
       stars.forEach((st) => {
         const phase = (st.userData as { phase: number }).phase;
         const tw = 0.55 + 0.55 * Math.sin(sceneTime * 3.1 + phase);
-        st.scale.setScalar(tw * pop);
-        st.rotation.y = sceneTime * 0.8 + phase;
+        st.scale.setScalar(0.24 * tw * pop);
       });
 
       fireflies.forEach((ff) => {
@@ -1231,7 +1290,7 @@ function buildFireflyNightScene(assets: AssetFactory): SuitcaseSceneRuntime {
           d.cz + Math.cos(t * 1.3) * 0.28
         );
         const glow = 0.65 + 0.55 * Math.sin(sceneTime * 4.2 + d.phase);
-        ff.scale.setScalar(glow * reveal);
+        ff.scale.setScalar(0.28 * glow * reveal);
       });
 
       bees.forEach((bee, idx) => {

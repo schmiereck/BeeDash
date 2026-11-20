@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Direction, LevelDefinition } from '../game/types';
 import { AssetFactory } from './assetFactory';
 import {
+  createMagicGlowTexture,
   getSuitcaseSceneForLevel,
   SuitcaseSceneDefinition,
   SuitcaseSceneRuntime
@@ -14,11 +15,14 @@ export interface SuitcaseStageCallbacks {
 }
 
 interface SparkleMote {
-  mesh: THREE.Mesh;
+  sprite: THREE.Sprite;
+  mat: THREE.SpriteMaterial;
   baseX: number;
   baseZ: number;
+  baseSize: number;
   speed: number;
   phase: number;
+  twinkleSpeed: number;
   maxH: number;
 }
 
@@ -63,6 +67,7 @@ export class SuitcaseStageOverlay {
   private renderer: THREE.WebGLRenderer | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private ownedMaterials: THREE.Material[] = [];
+  private ownedTextures: THREE.Texture[] = [];
 
   private suitcaseGroup: THREE.Group | null = null;
   private lidGroup: THREE.Group | null = null;
@@ -234,16 +239,34 @@ export class SuitcaseStageOverlay {
       suitcaseGroup.add(wMesh);
     }
 
-    // Tray dark-brown leather straps & corner caps
+    // Exterior-only tray leather straps & clasps (never slice through the hollow tray interior)
     for (const sx of [-1.75, 1.75]) {
-      const strap = new THREE.Mesh(new THREE.BoxGeometry(0.42, H + 0.03, D + 0.05), strapMat);
-      strap.position.set(sx, H / 2, 0);
-      strap.castShadow = true;
-      suitcaseGroup.add(strap);
+      const frontStrap = new THREE.Mesh(
+        new THREE.BoxGeometry(0.42, H + 0.01, 0.04),
+        strapMat
+      );
+      frontStrap.position.set(sx, H / 2, D / 2 + 0.02);
+      frontStrap.castShadow = true;
+      suitcaseGroup.add(frontStrap);
+
+      const backStrap = new THREE.Mesh(
+        new THREE.BoxGeometry(0.42, H + 0.01, 0.04),
+        strapMat
+      );
+      backStrap.position.set(sx, H / 2, -D / 2 - 0.02);
+      backStrap.castShadow = true;
+      suitcaseGroup.add(backStrap);
+
+      const bottomStrap = new THREE.Mesh(
+        new THREE.BoxGeometry(0.42, 0.03, D + 0.06),
+        strapMat
+      );
+      bottomStrap.position.set(sx, -0.015, 0);
+      suitcaseGroup.add(bottomStrap);
 
       // Hinged front brass clasp
       const claspPivot = new THREE.Group();
-      claspPivot.position.set(sx, H - 0.04, D / 2 + 0.04);
+      claspPivot.position.set(sx, H - 0.04, D / 2 + 0.05);
       const claspPlate = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.24, 0.08), brassMat);
       claspPlate.position.set(0, 0.04, 0.03);
       claspPivot.add(claspPlate);
@@ -251,10 +274,11 @@ export class SuitcaseStageOverlay {
       this.clasps.push(claspPivot);
     }
 
+    // Exterior bottom corner protectors
     for (const sx of [-1, 1]) {
       for (const sz of [-1, 1]) {
-        const cap = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.3, 0.46), strapMat);
-        cap.position.set(sx * (W / 2 - 0.2), 0.16, sz * (D / 2 - 0.2));
+        const cap = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.24, 0.22), strapMat);
+        cap.position.set(sx * (W / 2 - 0.07), 0.14, sz * (D / 2 - 0.07));
         suitcaseGroup.add(cap);
       }
     }
@@ -279,64 +303,87 @@ export class SuitcaseStageOverlay {
     lidOuter.castShadow = true;
     lidGroup.add(lidOuter);
 
+    // Velvet interior lining set cleanly proud of lidOuter underside (no z-fighting)
     const lidVelvet = new THREE.Mesh(
-      new THREE.BoxGeometry(W - 0.34, 0.04, D - 0.34),
+      new THREE.BoxGeometry(W - 0.34, 0.03, D - 0.34),
       lidVelvetMat
     );
-    lidVelvet.position.set(0, 0.01, D / 2);
+    lidVelvet.position.set(0, -0.022, D / 2);
     lidVelvet.receiveShadow = true;
     lidGroup.add(lidVelvet);
 
+    // Exterior-only lid leather straps (never coplanar with inner velvet lining)
     for (const sx of [-1.75, 1.75]) {
-      const lidStrap = new THREE.Mesh(
-        new THREE.BoxGeometry(0.42, lidH + 0.02, D + 0.05),
+      const topStrap = new THREE.Mesh(
+        new THREE.BoxGeometry(0.42, 0.035, D + 0.06),
         strapMat
       );
-      lidStrap.position.set(sx, lidH / 2, D / 2);
-      lidGroup.add(lidStrap);
+      topStrap.position.set(sx, lidH + 0.018, D / 2);
+      lidGroup.add(topStrap);
+
+      const lidFrontStrap = new THREE.Mesh(
+        new THREE.BoxGeometry(0.42, lidH + 0.02, 0.04),
+        strapMat
+      );
+      lidFrontStrap.position.set(sx, lidH / 2 + 0.01, D + 0.02);
+      lidGroup.add(lidFrontStrap);
+
+      const lidBackStrap = new THREE.Mesh(
+        new THREE.BoxGeometry(0.42, lidH + 0.02, 0.04),
+        strapMat
+      );
+      lidBackStrap.position.set(sx, lidH / 2 + 0.01, -0.02);
+      lidGroup.add(lidBackStrap);
     }
 
     for (const sx of [-1, 1]) {
-      for (const sz of [0.22, D - 0.22]) {
-        const lidCap = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.22, 0.46), strapMat);
-        lidCap.position.set(sx * (W / 2 - 0.2), lidH - 0.09, sz);
+      for (const sz of [0.07, D - 0.07]) {
+        const lidCap = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.18, 0.22), strapMat);
+        lidCap.position.set(sx * (W / 2 - 0.07), lidH - 0.07, sz);
         lidGroup.add(lidCap);
       }
     }
 
     const travelTag = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.04, 0.72), tagMat);
-    travelTag.position.set(0, lidH + 0.02, D / 2);
+    travelTag.position.set(0, lidH + 0.04, D / 2);
     lidGroup.add(travelTag);
 
     suitcaseGroup.add(lidGroup);
 
-    // Warm golden magic PointLight + floating sparkles inside suitcase
+    // Warm golden magic PointLight + soft glowing fairy-dust sprites rising from suitcase
     this.interiorLight = new THREE.PointLight(runtime.accentLightColor, 0, 12, 1.6);
     this.interiorLight.position.set(0, 1.8, 0.4);
     suitcaseGroup.add(this.interiorLight);
 
-    const sparkleColors = [0xffe066, 0xffae24, 0xfff3b8, 0xff9ec4];
-    const sparkleGeo = new THREE.OctahedronGeometry(0.085, 0);
-    for (let i = 0; i < 24; i++) {
+    const glowTex = createMagicGlowTexture();
+    if (glowTex) {
+      this.ownedTextures.push(glowTex);
+    }
+    const sparkleColors = [0xfff7c7, 0xffd95a, 0xffb443, 0xffbdd8, 0xffffff];
+    for (let i = 0; i < 36; i++) {
       const mat = this.trackMat(
-        new THREE.MeshBasicMaterial({
+        new THREE.SpriteMaterial({
+          map: glowTex,
           color: sparkleColors[i % sparkleColors.length],
           transparent: true,
-          opacity: 0.9,
+          opacity: 0,
           blending: THREE.AdditiveBlending,
           depthWrite: false
         })
       );
-      const mesh = new THREE.Mesh(sparkleGeo, mat);
-      mesh.visible = false;
-      suitcaseGroup.add(mesh);
+      const sprite = new THREE.Sprite(mat);
+      sprite.visible = false;
+      suitcaseGroup.add(sprite);
       this.sparkles.push({
-        mesh,
-        baseX: -2.6 + ((i * 1.13) % 5.2),
-        baseZ: -1.3 + ((i * 0.67) % 2.6),
-        speed: 0.45 + (i % 4) * 0.14,
-        phase: i * 0.43,
-        maxH: 2.3 + (i % 5) * 0.35
+        sprite,
+        mat,
+        baseX: -2.65 + ((i * 1.13) % 5.3),
+        baseZ: -1.35 + ((i * 0.67) % 2.7),
+        baseSize: 0.26 + ((i * 19) % 10) * 0.032,
+        speed: 0.36 + (i % 5) * 0.1,
+        phase: i * 0.37,
+        twinkleSpeed: 3.2 + (i % 4) * 1.1,
+        maxH: 2.5 + (i % 6) * 0.32
       });
     }
 
@@ -511,23 +558,24 @@ export class SuitcaseStageOverlay {
       this.interiorLight.intensity = 2.6 * THREE.MathUtils.clamp(lidT * 1.4, 0, 1) * pulse;
     }
 
-    // 4) Sparkles burst from suitcase opening
+    // 4) Soft glowing fairy dust drifting up from open suitcase
     for (const s of this.sparkles) {
-      if (this.elapsed < 1.22) {
-        s.mesh.visible = false;
+      if (this.elapsed < 1.2) {
+        s.sprite.visible = false;
         continue;
       }
-      s.mesh.visible = true;
-      const t = (this.elapsed - 1.22) * s.speed + s.phase;
+      s.sprite.visible = true;
+      const t = (this.elapsed - 1.2) * s.speed + s.phase;
       const cyc = t % 1;
-      s.mesh.position.set(
-        s.baseX + Math.sin(t * 4.5) * 0.22,
-        0.45 + cyc * s.maxH,
-        s.baseZ + Math.cos(t * 3.8) * 0.18
+      s.sprite.position.set(
+        s.baseX + Math.sin(t * 4.2 + s.phase) * 0.28,
+        0.38 + cyc * s.maxH,
+        s.baseZ + Math.cos(t * 3.4 + s.phase) * 0.22
       );
-      const fadeScale = Math.sin(cyc * Math.PI);
-      s.mesh.scale.setScalar(0.55 + fadeScale * 0.85);
-      s.mesh.rotation.y = this.elapsed * 2.5 + s.phase;
+      const lifeFade = Math.sin(cyc * Math.PI);
+      const twinkle = 0.68 + 0.32 * Math.sin(this.elapsed * s.twinkleSpeed + s.phase * 2.1);
+      s.mat.opacity = 0.92 * lifeFade * twinkle;
+      s.sprite.scale.setScalar(s.baseSize * (0.65 + lifeFade * 0.65) * (0.85 + twinkle * 0.25));
     }
 
     // 5) Companion bee greets us on the stage rim
@@ -586,7 +634,7 @@ export class SuitcaseStageOverlay {
     if (this.scene) {
       this.scene.traverse((obj) => {
         const mesh = obj as THREE.Mesh;
-        if (mesh.geometry && !obj.userData?.sharedGeo && !hasCustomModelAncestor(obj)) {
+        if (mesh.isMesh && mesh.geometry && !obj.userData?.sharedGeo && !hasCustomModelAncestor(obj)) {
           mesh.geometry.dispose();
         }
       });
@@ -597,9 +645,17 @@ export class SuitcaseStageOverlay {
     }
     this.ownedMaterials = [];
 
+    for (const tex of this.ownedTextures) {
+      tex.dispose();
+    }
+    this.ownedTextures = [];
+
     if (this.sceneRuntime) {
       for (const mat of this.sceneRuntime.ownedMaterials) {
         mat.dispose();
+      }
+      for (const tex of this.sceneRuntime.ownedTextures ?? []) {
+        tex.dispose();
       }
       this.sceneRuntime = null;
     }
