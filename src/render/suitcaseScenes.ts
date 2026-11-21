@@ -1433,6 +1433,473 @@ function buildFireflyNightScene(assets: AssetFactory): SuitcaseSceneRuntime {
   };
 }
 
+function buildBeeChristmasNeedleScene(assets: AssetFactory): SuitcaseSceneRuntime {
+  const root = new THREE.Group();
+  const owned: THREE.Material[] = [];
+
+  const glowTex = createMagicGlowTexture();
+  const ownedTextures: THREE.Texture[] = glowTex ? [glowTex] : [];
+
+  // Cozy crimson Christmas rug with golden trim
+  const rugMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0xb82937, roughness: 0.88 })
+  );
+  const goldMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({
+      color: 0xffd147,
+      emissive: 0xffa600,
+      emissiveIntensity: 0.32,
+      metalness: 0.48,
+      roughness: 0.25
+    })
+  );
+  const standRedMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0xd63344, roughness: 0.42 })
+  );
+  const needleMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0x2f7d44, roughness: 0.48 })
+  );
+  const stemBrownMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0x7c4a26, roughness: 0.72 })
+  );
+  const hiveWoodMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0x8f5624, roughness: 0.76 })
+  );
+  const combWindowMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({
+      color: 0xffc84a,
+      emissive: 0xff9e1c,
+      emissiveIntensity: 0.55,
+      roughness: 0.35
+    })
+  );
+  const santaRedMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0xd92638, roughness: 0.55 })
+  );
+  const whiteFluffMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0xfffaf0, roughness: 0.85 })
+  );
+
+  const rug = new THREE.Mesh(new THREE.CylinderGeometry(0.76, 0.78, 0.024, 28), rugMat);
+  rug.position.set(0, 0.142, 0.08);
+  rug.receiveShadow = true;
+  root.add(rug);
+
+  const rugRim = new THREE.Mesh(new THREE.TorusGeometry(0.75, 0.022, 8, 32), goldMat);
+  rugRim.rotation.x = Math.PI / 2;
+  rugRim.position.set(0, 0.156, 0.08);
+  root.add(rugRim);
+
+  // Cozy curved honeycomb hive alcove behind the single-needle tree
+  const hiveBackdrop = new THREE.Group();
+  hiveBackdrop.position.set(0, 0.14, -0.78);
+  const archWall = new THREE.Mesh(
+    new THREE.CylinderGeometry(1.12, 1.18, 1.38, 18, 1, true, Math.PI * 0.72, Math.PI * 0.56),
+    trackMat(
+      owned,
+      new THREE.MeshStandardMaterial({
+        color: 0xc27b2b,
+        roughness: 0.75,
+        side: THREE.DoubleSide
+      })
+    )
+  );
+  archWall.position.set(0, 0.68, 0.35);
+  archWall.castShadow = true;
+  archWall.receiveShadow = true;
+  hiveBackdrop.add(archWall);
+
+  // Glowing hexagonal honeycomb windows in the alcove
+  const hexPositions: Array<[number, number, number, number]> = [
+    [-0.46, 0.72, -0.58, 0.25],
+    [0, 0.94, -0.66, 0],
+    [0.46, 0.72, -0.58, -0.25]
+  ];
+  for (const [hx, hy, hz, hRotY] of hexPositions) {
+    const hexCell = new THREE.Group();
+    hexCell.position.set(hx, hy, hz);
+    hexCell.rotation.y = hRotY;
+    const frame = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.08, 6), hiveWoodMat);
+    frame.rotation.x = Math.PI / 2;
+    hexCell.add(frame);
+    const pane = new THREE.Mesh(new THREE.CylinderGeometry(0.135, 0.135, 0.095, 6), combWindowMat);
+    pane.rotation.x = Math.PI / 2;
+    hexCell.add(pane);
+    hiveBackdrop.add(hexCell);
+  }
+  root.add(hiveBackdrop);
+
+  // Festive single-pine-needle Christmas tree group
+  const treeGroup = new THREE.Group();
+  treeGroup.position.set(0, 0.15, 0.08);
+  root.add(treeGroup);
+
+  // Red tree stand with 4 little golden feet & brass holder collar
+  const standBase = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.2, 0.1, 16), standRedMat);
+  standBase.position.y = 0.05;
+  standBase.castShadow = true;
+  treeGroup.add(standBase);
+
+  const standCollar = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.08, 0.07, 14), goldMat);
+  standCollar.position.y = 0.115;
+  standCollar.castShadow = true;
+  treeGroup.add(standCollar);
+
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.032, 0.11), goldMat);
+    foot.position.set(Math.sin(a) * 0.18, 0.016, Math.cos(a) * 0.18);
+    foot.rotation.y = a;
+    foot.castShadow = true;
+    treeGroup.add(foot);
+  }
+
+  // Tiny woody stem sheath + ONE single slender gracefully curved green pine needle
+  const petiole = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.03, 0.09, 10), stemBrownMat);
+  petiole.position.y = 0.17;
+  petiole.castShadow = true;
+  treeGroup.add(petiole);
+
+  const needleSegments: Array<{
+    y: number;
+    h: number;
+    rBot: number;
+    rTop: number;
+    x: number;
+    rotZ: number;
+  }> = [
+    { y: 0.34, h: 0.3, rBot: 0.042, rTop: 0.039, x: 0.008, rotZ: -0.05 },
+    { y: 0.62, h: 0.3, rBot: 0.039, rTop: 0.034, x: 0.025, rotZ: -0.06 },
+    { y: 0.9, h: 0.29, rBot: 0.034, rTop: 0.026, x: 0.036, rotZ: -0.01 },
+    { y: 1.17, h: 0.28, rBot: 0.026, rTop: 0.016, x: 0.026, rotZ: 0.07 },
+    { y: 1.4, h: 0.22, rBot: 0.016, rTop: 0.004, x: 0.006, rotZ: 0.11 }
+  ];
+
+  const singleNeedle = new THREE.Group();
+  for (const seg of needleSegments) {
+    const segMesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(seg.rTop, seg.rBot, seg.h, 10),
+      needleMat
+    );
+    segMesh.scale.set(1.15, 1, 0.62); // Flattened true pine-needle cross section
+    segMesh.position.set(seg.x, seg.y, 0);
+    segMesh.rotation.z = seg.rotZ;
+    segMesh.castShadow = true;
+    singleNeedle.add(segMesh);
+  }
+
+  // Tiny crimson ribbon bow tied cleanly near the bottom of the single needle
+  const needleBow = new THREE.Mesh(new THREE.TorusGeometry(0.046, 0.015, 8, 16), santaRedMat);
+  needleBow.rotation.x = Math.PI / 2;
+  needleBow.position.set(0.01, 0.28, 0);
+  singleNeedle.add(needleBow);
+
+  // Golden star perched right on top of the single needle tip
+  const starGroup = new THREE.Group();
+  starGroup.position.set(-0.008, 1.54, 0);
+  for (let i = 0; i < 2; i++) {
+    const ray = new THREE.Mesh(new THREE.OctahedronGeometry(0.085, 0), goldMat);
+    ray.scale.set(0.42, 1.25, 0.42);
+    ray.rotation.z = i === 0 ? 0 : Math.PI / 4;
+    starGroup.add(ray);
+  }
+  const starHoriz = new THREE.Mesh(new THREE.OctahedronGeometry(0.085, 0), goldMat);
+  starHoriz.scale.set(1.25, 0.42, 0.42);
+  starGroup.add(starHoriz);
+
+  const starHaloMat = trackMat(
+    owned,
+    new THREE.SpriteMaterial({
+      ...(glowTex ? { map: glowTex } : {}),
+      color: 0xffe484,
+      transparent: true,
+      opacity: 0.92,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    })
+  );
+  const starHalo = new THREE.Sprite(starHaloMat);
+  starHalo.scale.setScalar(0.55);
+  starGroup.add(starHalo);
+  singleNeedle.add(starGroup);
+
+  // 4 glossy miniature baubles dangling right from the single needle
+  const baubleColors = [0xe8384f, 0xffc83d, 0x4cc9f0, 0xf7799b];
+  const baubleSpecs: Array<[number, number, number]> = [
+    [-0.068, 0.46, 0.03],
+    [0.095, 0.72, -0.02],
+    [-0.048, 0.98, 0.035],
+    [0.068, 1.22, -0.02]
+  ];
+  const baubles: THREE.Group[] = [];
+  baubleSpecs.forEach(([bx, by, bz], idx) => {
+    const bPivot = new THREE.Group();
+    bPivot.position.set(bx * 0.55, by + 0.05, bz);
+    const thread = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.065, 6), goldMat);
+    thread.position.set(bx * 0.45, -0.025, 0);
+    thread.rotation.z = bx < 0 ? -0.35 : 0.35;
+    bPivot.add(thread);
+
+    const ballMat = trackMat(
+      owned,
+      new THREE.MeshStandardMaterial({
+        color: baubleColors[idx % baubleColors.length],
+        metalness: 0.35,
+        roughness: 0.2
+      })
+    );
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.048, 14, 12), ballMat);
+    ball.position.set(bx * 0.55, -0.065, 0);
+    ball.castShadow = true;
+    bPivot.add(ball);
+    singleNeedle.add(bPivot);
+    baubles.push(bPivot);
+  });
+
+  // Warm fairy lights spiraling gently around the single pine needle
+  const fairyLights: Array<{ sprite: THREE.Sprite; phase: number }> = [];
+  for (let i = 0; i < 7; i++) {
+    const t = i / 6;
+    const ang = t * Math.PI * 3.4;
+    const r = 0.065 - t * 0.02;
+    const bulbMat = trackMat(
+      owned,
+      new THREE.SpriteMaterial({
+        ...(glowTex ? { map: glowTex } : {}),
+        color: i % 2 === 0 ? 0xffeb85 : 0xff9f68,
+        transparent: true,
+        opacity: 0.95,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      })
+    );
+    const bulb = new THREE.Sprite(bulbMat);
+    bulb.position.set(Math.cos(ang) * r + 0.015, 0.32 + t * 1.06, Math.sin(ang) * r);
+    bulb.scale.setScalar(0.16);
+    singleNeedle.add(bulb);
+    fairyLights.push({ sprite: bulb, phase: i * 0.85 });
+  }
+
+  treeGroup.add(singleNeedle);
+
+  // Tiny colorful wrapped gift boxes under the single-needle stand
+  const giftSpecs: Array<{
+    pos: [number, number, number];
+    size: [number, number, number];
+    rotY: number;
+    boxCol: number;
+    ribCol: number;
+  }> = [
+    { pos: [-0.36, 0.075, 0.26], size: [0.16, 0.12, 0.15], rotY: 0.3, boxCol: 0xe04352, ribCol: 0xffe066 },
+    { pos: [0.34, 0.065, 0.24], size: [0.14, 0.1, 0.14], rotY: -0.42, boxCol: 0x4aa865, ribCol: 0xfff3d6 },
+    { pos: [-0.26, 0.06, -0.26], size: [0.13, 0.09, 0.13], rotY: 0.65, boxCol: 0xf4b942, ribCol: 0xc92a3f },
+    { pos: [0.3, 0.07, -0.2], size: [0.15, 0.11, 0.13], rotY: -0.22, boxCol: 0x62a8e5, ribCol: 0xffd166 }
+  ];
+  for (const g of giftSpecs) {
+    const gift = new THREE.Group();
+    gift.position.set(...g.pos);
+    gift.rotation.y = g.rotY;
+    const bMat = trackMat(owned, new THREE.MeshStandardMaterial({ color: g.boxCol, roughness: 0.55 }));
+    const rMat = trackMat(owned, new THREE.MeshStandardMaterial({ color: g.ribCol, roughness: 0.35 }));
+    const box = new THREE.Mesh(new THREE.BoxGeometry(...g.size), bMat);
+    box.castShadow = true;
+    gift.add(box);
+    const ribA = new THREE.Mesh(
+      new THREE.BoxGeometry(g.size[0] + 0.012, g.size[1] + 0.012, g.size[2] * 0.22),
+      rMat
+    );
+    const ribB = new THREE.Mesh(
+      new THREE.BoxGeometry(g.size[0] * 0.22, g.size[1] + 0.012, g.size[2] + 0.012),
+      rMat
+    );
+    gift.add(ribA, ribB);
+    treeGroup.add(gift);
+  }
+
+  // Warm Christmas tree glow light inside the hive alcove
+  const treeGlowLight = new THREE.PointLight(0xffcb6b, 1.15, 5.2, 2);
+  treeGlowLight.position.set(0, 1.35, 0.55);
+  root.add(treeGlowLight);
+
+  // Festive festive honeypot next to Frau Honig
+  const honeyPot = createHoneyPotModel();
+  honeyPot.position.set(-2.12, 0.34, 0.52);
+  honeyPot.scale.setScalar(0.54);
+  root.add(honeyPot);
+
+  // 4 bees wearing tiny red Santa hats dancing & admiring the single pine needle
+  const attachSantaHat = (bee: THREE.Group): void => {
+    const hatGroup = new THREE.Group();
+    hatGroup.position.set(0, 0.23, 0.24);
+    hatGroup.rotation.set(-0.22, 0, -0.1);
+    const cuff = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.028, 8, 16), whiteFluffMat);
+    cuff.rotation.x = Math.PI / 2;
+    hatGroup.add(cuff);
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(0.105, 0.24, 12), santaRedMat);
+    cone.position.y = 0.11;
+    hatGroup.add(cone);
+    const pom = new THREE.Mesh(new THREE.SphereGeometry(0.036, 10, 8), whiteFluffMat);
+    pom.position.set(-0.015, 0.23, -0.01);
+    hatGroup.add(pom);
+    bee.add(hatGroup);
+  };
+
+  const festiveBees: THREE.Group[] = [];
+  for (let i = 0; i < 4; i++) {
+    const b = assets.createRescuedBee();
+    b.scale.setScalar(0.56);
+    attachSantaHat(b);
+    root.add(b);
+    festiveBees.push(b);
+  }
+
+  // Soft snowflakes & warm winter sparkles drifting through the scene
+  const snowMat = trackMat(
+    owned,
+    new THREE.SpriteMaterial({
+      ...(glowTex ? { map: glowTex } : {}),
+      color: 0xfff8e6,
+      transparent: true,
+      opacity: 0.88,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    })
+  );
+  const snowflakes: Array<{
+    sprite: THREE.Sprite;
+    bx: number;
+    bz: number;
+    phase: number;
+    speed: number;
+  }> = [];
+  for (let i = 0; i < 18; i++) {
+    const flake = new THREE.Sprite(snowMat);
+    const bx = -2.2 + ((i * 1.13) % 4.4);
+    const bz = -0.8 + ((i * 0.67) % 1.85);
+    root.add(flake);
+    snowflakes.push({
+      sprite: flake,
+      bx,
+      bz,
+      phase: i * 0.55,
+      speed: 0.22 + (i % 4) * 0.07
+    });
+  }
+
+  // Frau Honig and both children smiling beside the bees' single-needle Christmas tree
+  const mixers: THREE.AnimationMixer[] = [];
+  const frauHonig = attachCharacter(
+    root,
+    owned,
+    mixers,
+    assets,
+    'frau_honig',
+    1.05,
+    [-1.68, 0.14, 0.36],
+    0.56
+  );
+  const girl = attachCharacter(
+    root,
+    owned,
+    mixers,
+    assets,
+    'child_girl',
+    0.86,
+    [1.48, 0.14, 0.42],
+    -0.6
+  );
+  const boy = attachCharacter(
+    root,
+    owned,
+    mixers,
+    assets,
+    'child_boy',
+    0.88,
+    [2.02, 0.14, -0.06],
+    -0.84
+  );
+
+  return {
+    root,
+    lidBackdropColor: 0x3b2640,
+    trayFloorColor: 0xe6b554,
+    ambientLightColor: 0xfff0cc,
+    accentLightColor: 0xffc857,
+    ownedMaterials: owned,
+    ownedTextures,
+    mixers,
+    update: (sceneTime, dt, reveal) => {
+      const pop = easeOutBack(Math.min(1, reveal * 1.2));
+      treeGroup.scale.setScalar(pop);
+      hiveBackdrop.scale.setScalar(pop);
+      honeyPot.scale.setScalar(0.54 * pop);
+      frauHonig.root.scale.setScalar(1.05 * pop);
+      girl.root.scale.setScalar(0.86 * pop);
+      boy.root.scale.setScalar(0.88 * pop);
+
+      frauHonig.update(sceneTime, dt, 'wave');
+      girl.update(sceneTime + 0.5, dt, 'cheer');
+      boy.update(sceneTime + 1.0, dt, 'wave');
+
+      // Gentle sway on the proud single needle + star + hanging baubles
+      singleNeedle.rotation.z = Math.sin(sceneTime * 1.4) * 0.022;
+      starGroup.rotation.y = sceneTime * 0.9;
+      starHalo.scale.setScalar(0.5 + Math.sin(sceneTime * 3.8) * 0.1);
+      treeGlowLight.intensity = (1.1 + Math.sin(sceneTime * 3.4) * 0.18) * reveal;
+
+      baubles.forEach((b, idx) => {
+        b.rotation.z = Math.sin(sceneTime * 2.3 + idx * 1.4) * 0.08;
+      });
+
+      fairyLights.forEach((fl) => {
+        const pulse = 0.72 + 0.45 * Math.sin(sceneTime * 4.4 + fl.phase);
+        fl.sprite.scale.setScalar(0.16 * pulse);
+      });
+
+      // 3 bees orbit & celebrate around the needle; 1 admirer hovers near the star
+      festiveBees.forEach((bee, idx) => {
+        if (idx < 3) {
+          const ang = sceneTime * 1.35 + (idx / 3) * Math.PI * 2;
+          const r = 0.88 + Math.sin(sceneTime * 2 + idx) * 0.08;
+          bee.position.set(
+            Math.cos(ang) * r,
+            0.78 + Math.sin(sceneTime * 3.2 + idx * 1.7) * 0.16,
+            0.08 + Math.sin(ang) * r * 0.75
+          );
+          bee.rotation.y = Math.atan2(-Math.sin(ang), Math.cos(ang));
+        } else {
+          const hoverX = 0.42 + Math.sin(sceneTime * 1.5) * 0.08;
+          const hoverZ = 0.36 + Math.cos(sceneTime * 1.2) * 0.07;
+          bee.position.set(hoverX, 1.52 + Math.sin(sceneTime * 3.6) * 0.08, hoverZ);
+          bee.rotation.y = -2.25 + Math.sin(sceneTime * 1.9) * 0.16;
+        }
+        animateBeeWings(bee, sceneTime + idx * 0.35, 26, 0.7);
+      });
+
+      // Drifting winter snowflakes & golden dust
+      snowflakes.forEach((sf) => {
+        const cyc = (sceneTime * sf.speed + sf.phase) % 1;
+        const fade = Math.sin(cyc * Math.PI);
+        sf.sprite.position.set(
+          sf.bx + Math.sin(sceneTime * 1.4 + sf.phase) * 0.16,
+          2.65 - cyc * 2.35,
+          sf.bz + Math.cos(sceneTime * 1.1 + sf.phase) * 0.12
+        );
+        sf.sprite.scale.setScalar(0.14 * (0.55 + fade * 0.6) * reveal);
+      });
+    }
+  };
+}
+
 export const SUITCASE_SCENES: SuitcaseSceneDefinition[] = [
   {
     id: 'cherry_tree',
@@ -1475,6 +1942,14 @@ export const SUITCASE_SCENES: SuitcaseSceneDefinition[] = [
     title: 'Die Glühwürmchen-Sternennacht',
     caption: 'Auf der Gartenbank schauen Frau Honig und die Kinder in eine funkelnde Glühwürmchen-Nacht.',
     build: buildFireflyNightScene
+  },
+  {
+    id: 'bee_christmas_needle',
+    emoji: '🎄',
+    title: 'Der Bienenstock-Weihnachtsbaum',
+    caption:
+      'Im Bienenstock feiern die Bienen Weihnachten – natürlich mit einer einzigen, festlich geschmückten Tannennadel!',
+    build: buildBeeChristmasNeedleScene
   }
 ];
 

@@ -192,7 +192,11 @@ function buildFrauHonigRig(owned: THREE.Material[]): { root: THREE.Group; rig: C
   );
   const hairMat = trackMat(
     owned,
-    new THREE.MeshStandardMaterial({ color: 0x6b472b, roughness: 0.68 })
+    new THREE.MeshStandardMaterial({
+      color: 0x6b472b,
+      roughness: 0.68,
+      side: THREE.DoubleSide
+    })
   );
   const hatMat = trackMat(
     owned,
@@ -271,22 +275,48 @@ function buildFrauHonigRig(owned: THREE.Material[]): { root: THREE.Group; rig: C
   addArmLimb(rightArmPivot, coatMat, skinMat);
   bodyGroup.add(rightArmPivot);
 
-  // Head + chestnut bob + signature wide-brimmed flower hat
+  // Head + chestnut bob (open in front so her face is fully visible) + wide-brimmed flower hat
   const headPivot = new THREE.Group();
   headPivot.position.set(0, 0.7, 0);
   createCuteFace(headPivot, owned, skinMat, 0.125);
 
-  const backHair = new THREE.Mesh(new THREE.CylinderGeometry(0.132, 0.165, 0.2, 16), hairMat);
-  backHair.position.set(0, 0.115, -0.022);
+  const backHair = new THREE.Mesh(
+    new THREE.CylinderGeometry(
+      0.132,
+      0.16,
+      0.195,
+      18,
+      1,
+      true,
+      Math.PI * 0.36,
+      Math.PI * 1.28
+    ),
+    hairMat
+  );
+  backHair.position.set(0, 0.105, -0.012);
   backHair.castShadow = true;
+  backHair.userData.isHair = true;
   headPivot.add(backHair);
 
   const topHair = new THREE.Mesh(
-    new THREE.SphereGeometry(0.133, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.56),
+    new THREE.SphereGeometry(0.132, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.52),
     hairMat
   );
-  topHair.position.set(0, 0.13, -0.005);
+  topHair.position.set(0, 0.132, -0.014);
+  topHair.rotation.x = -0.42;
+  topHair.userData.isHair = true;
   headPivot.add(topHair);
+
+  // Soft side temple wisps framing cheeks without blocking her face
+  const wispGeo = new THREE.SphereGeometry(0.036, 10, 8);
+  for (const side of [-1, 1]) {
+    const wisp = new THREE.Mesh(wispGeo, hairMat);
+    wisp.scale.set(0.65, 1.35, 0.9);
+    wisp.position.set(side * 0.105, 0.165, 0.048);
+    wisp.rotation.z = side * 0.22;
+    wisp.userData.isHair = true;
+    headPivot.add(wisp);
+  }
 
   // Wide-brimmed sage-teal sunhat matching the reference illustration
   const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.36, 0.022, 24), hatMat);
@@ -400,10 +430,12 @@ function buildChildGirlRig(owned: THREE.Material[]): { root: THREE.Group; rig: C
   createCuteFace(headPivot, owned, skinMat, 0.135);
 
   const hairCap = new THREE.Mesh(
-    new THREE.SphereGeometry(0.143, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.6),
+    new THREE.SphereGeometry(0.143, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.56),
     hairMat
   );
-  hairCap.position.set(0, 0.14, -0.01);
+  hairCap.position.set(0, 0.142, -0.014);
+  hairCap.rotation.x = -0.4;
+  hairCap.userData.isHair = true;
   headPivot.add(hairCap);
 
   // Two playful bouncing ponytails with golden hairbows
@@ -416,6 +448,7 @@ function buildChildGirlRig(owned: THREE.Material[]): { root: THREE.Group; rig: C
     tail.position.set(side * 0.03, -0.08, -0.01);
     tail.rotation.z = side * 0.35;
     tail.castShadow = true;
+    tail.userData.isHair = true;
     pg.add(tail);
     return pg;
   };
@@ -532,10 +565,12 @@ function buildChildBoyRig(owned: THREE.Material[]): { root: THREE.Group; rig: Ch
   createCuteFace(headPivot, owned, skinMat, 0.135);
 
   const hairCap = new THREE.Mesh(
-    new THREE.SphereGeometry(0.143, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.58),
+    new THREE.SphereGeometry(0.143, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.56),
     hairMat
   );
-  hairCap.position.set(0, 0.14, -0.012);
+  hairCap.position.set(0, 0.142, -0.014);
+  hairCap.rotation.x = -0.4;
+  hairCap.userData.isHair = true;
   headPivot.add(hairCap);
 
   // Tousled front tufts
@@ -543,6 +578,7 @@ function buildChildBoyRig(owned: THREE.Material[]): { root: THREE.Group; rig: Ch
     const tuft = new THREE.Mesh(new THREE.ConeGeometry(0.042, 0.085, 8), hairMat);
     tuft.position.set(i * 0.045, 0.255, 0.078);
     tuft.rotation.set(0.65, 0, -i * 0.35);
+    tuft.userData.isHair = true;
     headPivot.add(tuft);
   }
   bodyGroup.add(headPivot);

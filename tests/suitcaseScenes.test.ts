@@ -13,8 +13,8 @@ import {
 } from '../src/render/suitcaseScenes';
 
 describe('Suitcase 3D Magic Scenes', () => {
-  it('defines 6 unique scenes with non-empty metadata', () => {
-    expect(SUITCASE_SCENES).toHaveLength(6);
+  it('defines 7 unique scenes with non-empty metadata', () => {
+    expect(SUITCASE_SCENES).toHaveLength(7);
     const ids = new Set<string>();
 
     for (const def of SUITCASE_SCENES) {
@@ -25,14 +25,16 @@ describe('Suitcase 3D Magic Scenes', () => {
       expect(ids.has(def.id)).toBe(false);
       ids.add(def.id);
     }
+
+    expect(getSuitcaseSceneById('bee_christmas_needle')).toBeDefined();
   });
 
-  it('maps levels 1..6 to distinct scenes and cycles cleanly for 7..12', () => {
-    const firstSix = [1, 2, 3, 4, 5, 6].map((n) => getSuitcaseSceneForLevel(n).id);
-    expect(new Set(firstSix).size).toBe(6);
+  it('maps levels 1..7 to distinct scenes and cycles cleanly for 8..14', () => {
+    const firstSeven = [1, 2, 3, 4, 5, 6, 7].map((n) => getSuitcaseSceneForLevel(n).id);
+    expect(new Set(firstSeven).size).toBe(7);
 
-    for (let n = 1; n <= 6; n++) {
-      expect(getSuitcaseSceneForLevel(n + 6).id).toBe(getSuitcaseSceneForLevel(n).id);
+    for (let n = 1; n <= 7; n++) {
+      expect(getSuitcaseSceneForLevel(n + 7).id).toBe(getSuitcaseSceneForLevel(n).id);
     }
   });
 
@@ -104,6 +106,54 @@ describe('Suitcase 3D Magic Scenes', () => {
       for (const pose of poses) {
         expect(() => char.update(0.5, 0.016, pose)).not.toThrow();
         expect(() => char.update(2.2, 0.016, pose)).not.toThrow();
+      }
+
+      for (const mat of char.ownedMaterials) {
+        mat.dispose();
+      }
+    }
+  });
+
+  it('keeps hair geometry clear of the central face window for Frau Honig and both children', () => {
+    const assets = new AssetFactory();
+    const keys: CharacterKey[] = ['frau_honig', 'child_girl', 'child_boy'];
+
+    for (const key of keys) {
+      const char = createStageCharacter(assets, key);
+      char.root.updateMatrixWorld(true);
+
+      const hairMeshes: THREE.Mesh[] = [];
+      char.root.traverse((obj) => {
+        if ((obj as THREE.Mesh).isMesh && obj.userData?.isHair === true) {
+          hairMeshes.push(obj as THREE.Mesh);
+        }
+      });
+      expect(hairMeshes.length).toBeGreaterThan(0);
+
+      // Walk up from first hair mesh to its headPivot (where local y=0 is neck base)
+      const headPivot = hairMeshes[0].parent!;
+      expect(headPivot).toBeTruthy();
+      const invHead = new THREE.Matrix4().copy(headPivot.matrixWorld).invert();
+      const toHeadLocal = new THREE.Matrix4();
+      const v = new THREE.Vector3();
+
+      for (const mesh of hairMeshes) {
+        toHeadLocal.multiplyMatrices(invHead, mesh.matrixWorld);
+        const posAttr = mesh.geometry.getAttribute('position');
+        expect(posAttr).toBeDefined();
+
+        for (let i = 0; i < posAttr.count; i++) {
+          v.fromBufferAttribute(posAttr, i).applyMatrix4(toHeadLocal);
+          const inFaceWindow =
+            Math.abs(v.x) < 0.065 &&
+            v.y >= 0.05 &&
+            v.y <= 0.155 &&
+            v.z > 0.085;
+          expect(
+            inFaceWindow,
+            `${key} hair vertex (${v.x.toFixed(3)}, ${v.y.toFixed(3)}, ${v.z.toFixed(3)}) intrudes into face window`
+          ).toBe(false);
+        }
       }
 
       for (const mat of char.ownedMaterials) {
