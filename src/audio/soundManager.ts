@@ -512,6 +512,13 @@ export class SoundManager {
       case 'petal_gate_close':
         this.playTone(ctx, 392, 261.63, 0.14, 'triangle', 0.1, 0);
         break;
+      case 'portal_warp': {
+        const notes = [523.25, 659.25, 783.99, 1046.5, 1318.5];
+        notes.forEach((n, idx) => {
+          this.playTone(ctx, n, n * 1.04, 0.16, 'sine', 0.11, idx * 0.032);
+        });
+        break;
+      }
       case 'win':
         this.playTone(ctx, 523.25, 523.25, 0.14, 'triangle', 0.16, 0);
         this.playTone(ctx, 659.25, 659.25, 0.14, 'triangle', 0.16, 0.1);

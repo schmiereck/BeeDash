@@ -53,6 +53,7 @@ export function createGameState(level: LevelDefinition): GameState {
     pressedPlates: 0,
     totalPlates: parsed.pressurePlates.length,
     petalGatesOpen: parsed.pressurePlates.length === 0,
+    portals: parsed.portals.map((p) => ({ ...p })),
     exitOpen: requiredFlowers === 0 && parsed.totalBees === 0,
     moves: 0,
     nextEntityId: parsed.nextEntityId,
@@ -79,6 +80,7 @@ export function cloneGameState(state: GameState): GameState {
     exitPos: { ...state.exitPos },
     pressurePlates: state.pressurePlates.map((p) => ({ ...p })),
     petalGates: state.petalGates.map((g) => ({ ...g })),
+    portals: state.portals.map((p) => ({ ...p })),
     sourceDripDelay: { ...state.sourceDripDelay },
     lastEvents: state.lastEvents.map((e) => ({ ...e }))
   };
@@ -154,6 +156,35 @@ function updateExitOpen(state: GameState, events: GameEvent[]): void {
     state.exitOpen = true;
     events.push({ type: 'exit_open', x: state.exitPos.x, y: state.exitPos.y });
   }
+}
+
+function tryPortalWarp(state: GameState, events: GameEvent[]): void {
+  if (!state.player.movedThisTick || state.status !== 'playing') return;
+  const portal = state.portals.find(
+    (p) => p.x === state.player.x && p.y === state.player.y
+  );
+  if (!portal) return;
+
+  const partner = state.portals.find(
+    (p) => p.pair === portal.pair && (p.x !== portal.x || p.y !== portal.y)
+  );
+  if (!partner) return;
+  if (state.grid[partner.y]?.[partner.x]?.type !== 'empty') return;
+
+  state.player.x = partner.x;
+  state.player.y = partner.y;
+  state.player.prevX = partner.x;
+  state.player.prevY = partner.y;
+  state.player.lastMoveFromX = partner.x;
+  state.player.lastMoveFromY = partner.y;
+  events.push({
+    type: 'portal_warp',
+    x: portal.x,
+    y: portal.y,
+    toX: partner.x,
+    toY: partner.y,
+    pair: portal.pair
+  });
 }
 
 export function stepGame(state: GameState, dir: Direction | null): GameEvent[] {
@@ -271,6 +302,7 @@ export function stepGame(state: GameState, dir: Direction | null): GameEvent[] {
     }
   }
 
+  tryPortalWarp(state, events);
   updatePressurePlates(state, events);
   rescueAdjacentFreeBees(state, events);
   updateExitOpen(state, events);

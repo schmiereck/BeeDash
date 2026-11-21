@@ -47,6 +47,7 @@ export function validateLevel(level: LevelDefinition): ValidationResult {
     totalBowls,
     pressurePlates,
     petalGates,
+    portals,
     honeySourceCount,
     initialHoneyCount
   } = parsed;
@@ -118,6 +119,17 @@ export function validateLevel(level: LevelDefinition): ValidationResult {
         if (PASSABLE_TILES.has(tile) || tile === 'trapped_bee') {
           visited[ny][nx] = true;
           queue.push({ x: nx, y: ny });
+        }
+      }
+
+      const portal = portals.find((p) => p.x === cur.x && p.y === cur.y);
+      if (portal) {
+        const partner = portals.find(
+          (p) => p.pair === portal.pair && (p.x !== portal.x || p.y !== portal.y)
+        );
+        if (partner && !visited[partner.y][partner.x]) {
+          visited[partner.y][partner.x] = true;
+          queue.push({ x: partner.x, y: partner.y });
         }
       }
     }

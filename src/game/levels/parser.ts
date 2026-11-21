@@ -1,4 +1,4 @@
-import { Cell, GridPos, LevelDefinition, TileType } from '../types';
+import { Cell, GridPos, LevelDefinition, PortalDef, TileType } from '../types';
 import { makeCell } from '../honeyPhysics';
 
 export interface ParsedLevel {
@@ -14,6 +14,7 @@ export interface ParsedLevel {
   totalBowls: number;
   pressurePlates: GridPos[];
   petalGates: GridPos[];
+  portals: PortalDef[];
   nextEntityId: number;
 }
 
@@ -24,6 +25,8 @@ const CHAR_TO_TILE: Record<string, TileType> = {
   ' ': 'empty',
   P: 'empty',
   D: 'empty',
+  '1': 'empty',
+  '2': 'empty',
   F: 'flower',
   B: 'trapped_bee',
   O: 'honeypot',
@@ -57,6 +60,7 @@ export function parseLevelAscii(level: LevelDefinition): ParsedLevel {
   let totalBowls = 0;
   const pressurePlates: GridPos[] = [];
   const petalGates: GridPos[] = [];
+  const portals: PortalDef[] = [];
 
   const grid: Cell[][] = [];
 
@@ -91,6 +95,8 @@ export function parseLevelAscii(level: LevelDefinition): ParsedLevel {
       }
 
       if (ch === 'D') pressurePlates.push({ x, y });
+      if (ch === '1') portals.push({ x, y, pair: 0 });
+      if (ch === '2') portals.push({ x, y, pair: 1 });
       if (tileType === 'flower') totalFlowers++;
       if (tileType === 'trapped_bee') totalBees++;
       if (tileType === 'honey_source') honeySourceCount++;
@@ -111,6 +117,15 @@ export function parseLevelAscii(level: LevelDefinition): ParsedLevel {
     throw new Error(`Level "${level.id}" fehlt der Ausgang (E).`);
   }
 
+  for (const pair of [0, 1] as const) {
+    const count = portals.filter((p) => p.pair === pair).length;
+    if (count !== 0 && count !== 2) {
+      throw new Error(
+        `Level "${level.id}": Portal-Paar "${pair + 1}" muss genau 2x vorkommen (gefunden: ${count}).`
+      );
+    }
+  }
+
   return {
     width,
     height,
@@ -124,6 +139,7 @@ export function parseLevelAscii(level: LevelDefinition): ParsedLevel {
     totalBowls,
     pressurePlates,
     petalGates,
+    portals,
     nextEntityId
   };
 }

@@ -240,6 +240,25 @@ export function renderLevelPreview(
     ctx.fill();
   }
 
+  // Draw blossom portals underneath start marker
+  for (const portal of parsed.portals) {
+    const cx = originX + (portal.x + 0.5) * tileSize;
+    const cy = originY + (portal.y + 0.5) * tileSize;
+    ctx.fillStyle = portal.pair === 0 ? 'rgba(185, 117, 255, 0.35)' : 'rgba(56, 217, 210, 0.35)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, tileSize * 0.42, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = portal.pair === 0 ? '#b975ff' : '#38d9d2';
+    ctx.lineWidth = Math.max(1.5, tileSize * 0.11);
+    ctx.beginPath();
+    ctx.arc(cx, cy, tileSize * 0.32, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#fff3b0';
+    ctx.beginPath();
+    ctx.arc(cx, cy, tileSize * 0.13, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   // Draw player bee at start
   const beeCx = originX + (playerStart.x + 0.5) * tileSize;
   const beeCy = originY + (playerStart.y + 0.5) * tileSize;

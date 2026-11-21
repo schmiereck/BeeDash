@@ -46,6 +46,7 @@ export class BoardRenderer {
   private assets: AssetFactory;
   private cellMeshes = new Map<number, THREE.Group>();
   private plateMeshes = new Map<string, THREE.Group>();
+  private portalMeshes = new Map<string, THREE.Group>();
   private honeyTransitions = new Map<number, HoneyTransition>();
   private honeyWobbleTime = new Map<number, number>();
   private honeyBridgeBlend = new Map<number, HoneyBridgeState>();
@@ -68,6 +69,7 @@ export class BoardRenderer {
   private stickyDripTimer = 0;
   private stickyShakeTimer = 0;
   private wasSticky = false;
+  private portalPopTimer = 0;
 
   constructor(assets: AssetFactory) {
     this.assets = assets;
@@ -209,6 +211,26 @@ export class BoardRenderer {
       }
     }
 
+    // Sync persistent blossom portals
+    const activePortalKeys = new Set<string>();
+    for (const portal of state.portals) {
+      const key = `${portal.x},${portal.y}`;
+      activePortalKeys.add(key);
+      if (!this.portalMeshes.has(key)) {
+        const portalObj = this.assets.createPortal(portal.pair);
+        portalObj.position.set(portal.x, -portal.y, -0.22);
+        this.portalMeshes.set(key, portalObj);
+        this.group.add(portalObj);
+      }
+    }
+    for (const [key, portalObj] of this.portalMeshes.entries()) {
+      if (!activePortalKeys.has(key)) {
+        this.group.remove(portalObj);
+        this.disposeProceduralObj(portalObj);
+        this.portalMeshes.delete(key);
+      }
+    }
+
     // Emit particles for tick events
     for (const ev of events) {
       switch (ev.type) {
@@ -265,6 +287,11 @@ export class BoardRenderer {
           break;
         case 'petal_gate_open':
           this.particles.emitPetalGateOpen(ev.x, ev.y);
+          break;
+        case 'portal_warp':
+          this.particles.emitPortalWarp(ev.x, ev.y, ev.pair);
+          this.particles.emitPortalWarp(ev.toX, ev.toY, ev.pair);
+          this.portalPopTimer = 0.3;
           break;
         case 'exit_open':
           this.particles.emitExitOpen(ev.x, ev.y);
@@ -337,6 +364,17 @@ export class BoardRenderer {
         if (p >= 1) {
           this.activeTrick = null;
         }
+      }
+
+      if (this.portalPopTimer > 0) {
+        this.portalPopTimer = Math.max(0, this.portalPopTimer - dt);
+        const p = 1 - this.portalPopTimer / 0.3;
+        const popScale =
+          p < 0.65
+            ? THREE.MathUtils.lerp(0.25, 1.18, p / 0.65)
+            : THREE.MathUtils.lerp(1.18, 1.0, (p - 0.65) / 0.35);
+        this.beeMesh.scale.multiplyScalar(popScale);
+        yawOffset += (1 - p) * Math.PI * 1.25;
       }
 
       const isSticky = state.stickyRemainingMs > 0;
@@ -764,6 +802,26 @@ export class BoardRenderer {
       }
     }
 
+    for (const portal of state.portals) {
+      const portalObj = this.portalMeshes.get(`${portal.x},${portal.y}`);
+      if (!portalObj) continue;
+      const { swirlGroup, coreRing, glowMat } = portalObj.userData as {
+        swirlGroup?: THREE.Group;
+        coreRing?: THREE.Object3D;
+        glowMat?: THREE.MeshStandardMaterial;
+      };
+      if (swirlGroup) {
+        swirlGroup.rotation.z = this.elapsed * (portal.pair === 0 ? 2.4 : -2.6);
+      }
+      if (coreRing) {
+        const s = 1 + Math.sin(this.elapsed * 3.4 + portal.x) * 0.08;
+        coreRing.scale.setScalar(s);
+      }
+      if (glowMat) {
+        glowMat.emissiveIntensity = 0.4 + Math.sin(this.elapsed * 3 + portal.y) * 0.15;
+      }
+    }
+
     this.particles.update(dt);
   }
 
@@ -1186,6 +1244,11 @@ export class BoardRenderer {
       this.disposeProceduralObj(plateObj);
     }
     this.plateMeshes.clear();
+    for (const portalObj of this.portalMeshes.values()) {
+      this.group.remove(portalObj);
+      this.disposeProceduralObj(portalObj);
+    }
+    this.portalMeshes.clear();
     this.honeyTransitions.clear();
     this.honeyWobbleTime.clear();
     this.honeyBridgeBlend.clear();
@@ -1213,6 +1276,7 @@ export class BoardRenderer {
     this.stickyDripTimer = 0;
     this.stickyShakeTimer = 0;
     this.wasSticky = false;
+    this.portalPopTimer = 0;
 
     this.particles.clear();
   }

@@ -11,6 +11,7 @@ import {
   createHoneySourceModel,
   createLiquidHoneyModel,
   createPetalGateModel,
+  createPortalModel,
   createPressurePlateModel,
   createSuitcaseModel,
   createTrappedBeeModel,
@@ -158,6 +159,10 @@ export class AssetFactory {
 
   createPressurePlate(): THREE.Group {
     return createPressurePlateModel();
+  }
+
+  createPortal(pair: 0 | 1): THREE.Group {
+    return createPortalModel(pair);
   }
 
   createTileObject(type: TileType, variant = 0): THREE.Group | null {

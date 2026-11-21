@@ -26,6 +26,12 @@ export interface PressurePlateState {
   pressed: boolean;
 }
 
+export interface PortalDef {
+  x: number;
+  y: number;
+  pair: 0 | 1;
+}
+
 export type FallState = 'resting' | 'wobbling' | 'falling';
 
 export type GameStatus = 'playing' | 'won' | 'lost';
@@ -71,6 +77,7 @@ export type GameEvent =
   | { type: 'plate_press'; x: number; y: number }
   | { type: 'petal_gate_open'; x: number; y: number }
   | { type: 'petal_gate_close'; x: number; y: number }
+  | { type: 'portal_warp'; x: number; y: number; toX: number; toY: number; pair: 0 | 1 }
   | { type: 'exit_open'; x: number; y: number }
   | { type: 'exit_locked'; x: number; y: number }
   | { type: 'bonk_pot'; x: number; y: number }
@@ -117,6 +124,7 @@ export interface GameState {
   pressedPlates: number;
   totalPlates: number;
   petalGatesOpen: boolean;
+  portals: PortalDef[];
   exitOpen: boolean;
   moves: number;
   nextEntityId: number;

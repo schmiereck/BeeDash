@@ -18,7 +18,7 @@ export const CAMPAIGN_WORLDS: CampaignWorld[] = [
     number: 2,
     emoji: '🌸',
     title: 'Welt 2: Der Sonnenblüten-Garten',
-    subtitle: 'Waben 13–18'
+    subtitle: 'Waben 13–24'
   }
 ];
 
@@ -411,6 +411,138 @@ const RAW_CAMPAIGN_LEVELS: LevelDefinition[] = [
       '#...#...#.D#....#...#',
       '#.B.#.F.####..F.#...#',
       '#...............#B.F#',
+      '#####################'
+    ]
+  },
+  {
+    id: 'wabe-19',
+    number: 19,
+    world: 2,
+    title: 'Honigtopf-Karussell',
+    chapter: 'Kapitel 6: Blüten-Schalter & Tore',
+    mapCoords: { q: 0, r: -1 },
+    intro: 'Schiebe unten den Honigtopf aufs rosa Blüten-Kissen und lass oben einen zweiten Topf von der runden Wabe abrollen!',
+    tip: '1) Drücke unten den Honigtopf nach rechts auf die Druckplatte – oben springt das Blüten-Tor auf! 2) Grabe oben rechts neben dem zweiten Topf beide Wachsfelder frei und weiche kurz aus, damit er von der runden Wabe abrollt.',
+    ascii: [
+      '#############',
+      '#P.#FO..T..E#',
+      '#.F##R..#.F.#',
+      '#..##...#...#',
+      '#.##..###...#',
+      '#....O  D#..#',
+      '#.F.######B.#',
+      '#B..#F......#',
+      '#############'
+    ]
+  },
+  {
+    id: 'wabe-20',
+    number: 20,
+    world: 2,
+    title: 'Honigfall und Blüten-Knopf',
+    chapter: 'Kapitel 6: Blüten-Schalter & Tore',
+    mapCoords: { q: 1, r: -1 },
+    intro: 'Erst öffnet der Blüten-Schalter den Weg zur Honigquelle – danach füllt der goldene Honig die Schale am Ausgang!',
+    tip: '1) Schiebe den Honigtopf auf die rosa Druckplatte, um durch das Blüten-Tor in die mittlere Kammer zu fliegen. 2) Grabe dort unter dem Honigsee den Schacht frei, warte rechts davon auf die Schale – schon öffnet sich auch das Honig-Tor!',
+    ascii: [
+      '###################',
+      '#P.....#S...#....E#',
+      '#.F..F.#~~..#.F...#',
+      '#..O D####..#.....#',
+      '#.#####.....#.....#',
+      '#......T....G.....#',
+      '#.F.#..#....#...B.#',
+      '#...#..#..U.#.....#',
+      '#.B.#..######.....#',
+      '#......#..F.....F.#',
+      '###################'
+    ]
+  },
+  {
+    id: 'wabe-21',
+    number: 21,
+    world: 2,
+    title: 'Die Zauberblüte',
+    chapter: 'Kapitel 7: Magische Blüten-Portale',
+    mapCoords: { q: 2, r: -1 },
+    intro: 'Neu entdeckt: Zwei leuchtende lila Zauberblüten! Fliege in eine hinein, um blitzschnell zur anderen zu schwirren!',
+    tip: 'Auf der linken Seite sammelst du beide Blüten ein. Fliegst du danach direkt auf die leuchtende lila Portal-Blüte, ploppst du auf der anderen Seite der Steinmauer wieder heraus!',
+    ascii: [
+      '#############',
+      '#P....#....E#',
+      '#.F...#..F..#',
+      '#...1.#.1...#',
+      '#.....#.....#',
+      '#.F...#..B..#',
+      '#.....#.....#',
+      '#.....#..F..#',
+      '#############'
+    ]
+  },
+  {
+    id: 'wabe-22',
+    number: 22,
+    world: 2,
+    title: 'Hin und zurück durchs Portal',
+    chapter: 'Kapitel 7: Magische Blüten-Portale',
+    mapCoords: { q: 2, r: 0 },
+    intro: 'Schlüpfe durch die Zauberblüte nach rechts, drücke die Druckplatte und kehre durch dieselbe Zauberblüte wieder heim!',
+    tip: '1) Fliege oben rechts durch das lila Portal. 2) Schiebe dort den Honigtopf auf die Druckplatte, sammle die beiden Blüten und befreie die Freundin. 3) Durch das Portal zurück kannst du unten durchs offene Blüten-Tor zum Koffer!',
+    ascii: [
+      '#############',
+      '#P..1.#.1...#',
+      '#.F...#..F..#',
+      '#.....#.O D##',
+      '####T##.#####',
+      '#.....#..F..#',
+      '#.F...#.B...#',
+      '#E....#.....#',
+      '#############'
+    ]
+  },
+  {
+    id: 'wabe-23',
+    number: 23,
+    world: 2,
+    title: 'Die zwei Zauberblüten',
+    chapter: 'Kapitel 7: Magische Blüten-Portale',
+    mapCoords: { q: 2, r: 1 },
+    intro: 'Lila führt zu Lila und Türkis führt zu Türkis! Öffne erst das Honig-Tor zur zweiten Zauberblüte!',
+    tip: '1) Sammle links alle Blüten, befreie die Biene und nutze die lila Zauberblüte. 2) Fülle in der Mitte die goldene Schale mit Honig, um zum türkisen Portal zu gelangen. 3) Drüben warten noch Freundin, Blüten und Koffer!',
+    ascii: [
+      '###################',
+      '#P....#S....#..2.E#',
+      '#.F...#~~...#.F...#',
+      '#..1..###...#.....#',
+      '#.###.#...1.#..O..#',
+      '#..F..#.....#..R..#',
+      '#..B..#.....#.F...#',
+      '#.....#..U..#...B.#',
+      '#.....####G##.....#',
+      '#..F..#.F..2#..F..#',
+      '###################'
+    ]
+  },
+  {
+    id: 'wabe-24',
+    number: 24,
+    world: 2,
+    title: 'Frau Honigs Zauber-Garten',
+    chapter: 'Kapitel 7: Magische Blüten-Portale',
+    mapCoords: { q: 3, r: 0 },
+    intro: 'Das große Welt-2-Finale! Lila Portal, Blüten-Druckplatte, goldene Honigschale und türkises Portal führen dich ans Ziel!',
+    tip: '1) Fliege links durchs lila Portal, schiebe den Topf auf die Druckplatte und schlüpfe zurück. 2) Durch das geöffnete Blüten-Tor gelangst du zur Honigkammer – fülle die Schale für das Honig-Tor. 3) Durch das türkise Portal wartet rechts der Koffer!',
+    ascii: [
+      '#####################',
+      '#P...#1....#S...#2.E#',
+      '#.F..#..F..#~~..#...#',
+      '#..1.#.O D####..#.F.#',
+      '#....#######....#...#',
+      '#....T..........#O..#',
+      '#.F..#..B..#....#R..#',
+      '#..B.#..F..#..U.#.F.#',
+      '#....#.....####G#...#',
+      '#..F.#.....#2.F.#B.F#',
       '#####################'
     ]
   }

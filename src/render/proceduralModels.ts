@@ -1239,3 +1239,81 @@ export function createPetalGateModel(): THREE.Group {
   enableShadows(root, true, true);
   return root;
 }
+
+export function createPortalModel(pair: 0 | 1): THREE.Group {
+  const root = new THREE.Group();
+  root.position.z = -0.22;
+  const disposableMaterials: THREE.Material[] = [];
+
+  const isViolet = pair === 0;
+  const petalColor = isViolet ? 0xb975ff : 0x38d9d2;
+  const emissiveColor = isViolet ? 0x843dff : 0x0fa3b1;
+  const ringColor = isViolet ? 0xffe066 : 0xa8ffeb;
+  const discColor = isViolet ? 0xdcb8ff : 0x9ef7f2;
+
+  const petalMat = new THREE.MeshStandardMaterial({
+    color: petalColor,
+    emissive: emissiveColor,
+    emissiveIntensity: 0.45,
+    roughness: 0.28
+  });
+  const ringMat = new THREE.MeshStandardMaterial({
+    color: ringColor,
+    emissive: ringColor,
+    emissiveIntensity: 0.35,
+    roughness: 0.32,
+    metalness: 0.25
+  });
+  const discMat = new THREE.MeshBasicMaterial({
+    color: discColor,
+    transparent: true,
+    opacity: 0.44,
+    depthWrite: false,
+    side: THREE.DoubleSide
+  });
+  const beadMat = new THREE.MeshBasicMaterial({
+    color: 0xfff8cf
+  });
+  disposableMaterials.push(petalMat, ringMat, discMat, beadMat);
+
+  // Outer flower petals
+  const petalCount = isViolet ? 6 : 8;
+  const petalGeo = new THREE.SphereGeometry(isViolet ? 0.13 : 0.1, 10, 8);
+  for (let i = 0; i < petalCount; i++) {
+    const angle = (i / petalCount) * Math.PI * 2;
+    const petal = new THREE.Mesh(petalGeo, petalMat);
+    petal.scale.set(isViolet ? 0.9 : 0.65, isViolet ? 1.35 : 1.55, 0.36);
+    petal.position.set(Math.cos(angle) * 0.31, Math.sin(angle) * 0.31, -0.02);
+    petal.rotation.z = angle - Math.PI / 2;
+    root.add(petal);
+  }
+
+  // Glowing inner ring & shimmering vortex disc
+  const coreRing = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.036, 10, 24), ringMat);
+  root.add(coreRing);
+
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(0.25, 22), discMat);
+  disc.position.z = 0.01;
+  root.add(disc);
+
+  // Rotating fairy beads
+  const swirlGroup = new THREE.Group();
+  swirlGroup.position.z = 0.04;
+  const beadGeo = new THREE.SphereGeometry(0.048, 8, 8);
+  for (let i = 0; i < 3; i++) {
+    const angle = (i / 3) * Math.PI * 2;
+    const bead = new THREE.Mesh(beadGeo, beadMat);
+    bead.position.set(Math.cos(angle) * 0.18, Math.sin(angle) * 0.18, 0);
+    swirlGroup.add(bead);
+  }
+  root.add(swirlGroup);
+
+  root.userData = {
+    swirlGroup,
+    coreRing,
+    glowMat: petalMat,
+    discMat,
+    disposableMaterials
+  };
+  return root;
+}

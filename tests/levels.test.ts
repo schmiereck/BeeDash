@@ -25,8 +25,8 @@ function expand(moves: Array<[Direction | null, number]>): Array<Direction | nul
 }
 
 describe('Campaign Levels Validation', () => {
-  it('contains 18 sequentially numbered levels with unique IDs and per-world coordinates', () => {
-    expect(CAMPAIGN_LEVELS).toHaveLength(18);
+  it('contains 24 sequentially numbered levels with unique IDs and per-world coordinates', () => {
+    expect(CAMPAIGN_LEVELS).toHaveLength(24);
     expect(CAMPAIGN_WORLDS).toHaveLength(2);
     const ids = new Set<string>();
     const coords = new Set<string>();
@@ -43,8 +43,8 @@ describe('Campaign Levels Validation', () => {
     });
   });
 
-  it('validates structure, idle safety, and goal reachability for all 18 campaign levels', () => {
-    const staticLevels = new Set([1, 2, 3, 4, 9, 11, 13, 15, 16]);
+  it('validates structure, idle safety, and goal reachability for all 24 campaign levels', () => {
+    const staticLevels = new Set([1, 2, 3, 4, 9, 11, 13, 15, 16, 19, 21, 22]);
 
     for (const level of CAMPAIGN_LEVELS) {
       const result = validateLevel(level);
@@ -673,6 +673,295 @@ describe('Campaign Levels Validation', () => {
 
     expect(state.status).toBe('won');
     expect(state.collectedFlowers).toBe(7);
+    expect(state.rescuedBees).toBe(3);
+  });
+
+  it('solves Wabe 19 (static pressure plate + rounded wall carousel)', () => {
+    const level = CAMPAIGN_LEVELS.find((l) => l.id === 'wabe-19')!;
+    expect(level).toBeDefined();
+
+    const state = createGameState(level);
+    runMoves(
+      state,
+      expand([
+        ['down', 1],
+        ['right', 1], // F(2,2)
+        ['left', 1],
+        ['down', 4], // (1,6) frees B(1,7)
+        ['right', 1], // F(2,6)
+        ['left', 1],
+        ['up', 1], // (1,5)
+        ['right', 6], // pushes O(5,5) -> D(8,5), ends at (7,5), T(8,1) opens!
+        ['left', 3], // (4,5)
+        ['up', 1], // (4,4)
+        ['right', 1], // (5,4)
+        ['up', 1], // (5,3)
+        ['right', 2], // (7,3)
+        ['up', 1], // (7,2)
+        ['left', 1], // (6,2)
+        ['up', 1], // (6,1)
+        ['right', 1], // (7,1)
+        ['down', 1], // (7,2)
+        [null, 3], // O(5,1) rolls off R(5,2) to (6,1)->(6,3)
+        ['up', 1], // (7,1)
+        ['left', 3], // F(4,1)
+        ['right', 5], // crosses open T(8,1) to (9,1)
+        ['down', 1], // (9,2)
+        ['right', 1], // F(10,2)
+        ['right', 1], // (11,2)
+        ['down', 5], // passes (11,6) rescuing B(10,6), lands (11,7)
+        ['left', 6], // F(5,7) -> exit opens!
+        ['right', 6], // (11,7)
+        ['up', 6] // enters E(11,1)
+      ])
+    );
+
+    expect(state.status).toBe('won');
+    expect(state.petalGatesOpen).toBe(true);
+    expect(state.collectedFlowers).toBe(5);
+    expect(state.rescuedBees).toBe(2);
+  });
+
+  it('solves Wabe 20 (scrolling pressure plate into honey-bowl gate sequence)', () => {
+    const level = CAMPAIGN_LEVELS.find((l) => l.id === 'wabe-20')!;
+    expect(level).toBeDefined();
+
+    const state = createGameState(level);
+    runMoves(
+      state,
+      expand([
+        ['right', 1],
+        ['down', 1], // F(2,2)
+        ['right', 3], // F(5,2)
+        ['left', 3],
+        ['down', 1], // (2,3)
+        ['right', 2], // pushes O(3,3) -> D(5,3), T(7,5) opens!
+        ['left', 3], // (1,3)
+        ['down', 3], // (1,6)
+        ['right', 1], // F(2,6)
+        ['left', 1],
+        ['down', 2], // (1,8) frees B(2,8)
+        ['up', 3], // (1,5)
+        ['right', 8], // crosses open T(7,5) to (9,5)
+        ['down', 1], // (9,6)
+        ['right', 1], // (10,6) above U(10,7)
+        ['up', 4], // opens honey dam (10,2..6)
+        ['right', 1], // (11,2)
+        ['down', 3] // (11,5) waiting safely in front of G(12,5)
+      ])
+    );
+
+    for (let i = 0; i < 30 && !state.gatesOpen; i++) {
+      stepGame(state, null);
+    }
+    expect(state.gatesOpen).toBe(true);
+
+    runMoves(
+      state,
+      expand([
+        ['right', 2], // crosses open G(12,5) to (13,5)
+        ['up', 3], // (13,2)
+        ['right', 1], // F(14,2)
+        ['down', 4], // (14,6)
+        ['right', 1], // (15,6) frees B(16,6)
+        ['down', 3], // (15,9)
+        ['right', 1], // F(16,9)
+        ['left', 6], // F(10,9) -> exit opens!
+        ['right', 7], // (17,9)
+        ['up', 8] // enters E(17,1)
+      ])
+    );
+
+    expect(state.status).toBe('won');
+    expect(state.collectedFlowers).toBe(6);
+    expect(state.rescuedBees).toBe(2);
+  });
+
+  it('solves Wabe 21 (static violet blossom portal discovery level)', () => {
+    const level = CAMPAIGN_LEVELS.find((l) => l.id === 'wabe-21')!;
+    expect(level).toBeDefined();
+
+    const state = createGameState(level);
+    runMoves(
+      state,
+      expand([
+        ['down', 1],
+        ['right', 1], // F(2,2)
+        ['down', 3], // F(2,5)
+        ['up', 2], // (2,3)
+        ['right', 2], // steps onto 1(4,3) -> warps to 1(8,3)
+        ['up', 1],
+        ['right', 1], // F(9,2)
+        ['down', 2], // (9,4) frees B(9,5)
+        ['down', 3], // F(9,7) -> exit opens!
+        ['right', 2], // (11,7)
+        ['up', 6] // enters E(11,1)
+      ])
+    );
+
+    expect(state.status).toBe('won');
+    expect(state.collectedFlowers).toBe(4);
+    expect(state.rescuedBees).toBe(1);
+  });
+
+  it('solves Wabe 22 (static round-trip portal + pressure plate level)', () => {
+    const level = CAMPAIGN_LEVELS.find((l) => l.id === 'wabe-22')!;
+    expect(level).toBeDefined();
+
+    const state = createGameState(level);
+    runMoves(
+      state,
+      expand([
+        ['down', 1],
+        ['right', 1], // F(2,2)
+        ['up', 1], // (2,1)
+        ['right', 2], // enters 1(4,1) -> warps to 1(8,1)
+        ['down', 1],
+        ['right', 1], // F(9,2)
+        ['left', 2], // (7,2)
+        ['down', 1], // (7,3)
+        ['right', 2], // pushes O(8,3) -> D(10,3), lands (9,3), T(4,4) opens!
+        ['left', 2], // (7,3)
+        ['down', 2], // (7,5)
+        ['right', 2], // F(9,5)
+        ['left', 1], // (8,5) frees B(8,6)
+        ['left', 1], // (7,5)
+        ['up', 4], // (7,1)
+        ['right', 1], // steps onto 1(8,1) -> warps back to 1(4,1)
+        ['down', 5], // crosses open T(4,4) to (4,6)
+        ['left', 2], // F(2,6) -> exit opens!
+        ['down', 1],
+        ['left', 1] // enters E(1,7)
+      ])
+    );
+
+    expect(state.status).toBe('won');
+    expect(state.petalGatesOpen).toBe(true);
+    expect(state.collectedFlowers).toBe(4);
+    expect(state.rescuedBees).toBe(1);
+  });
+
+  it('solves Wabe 23 (scrolling dual portal colors + honey bowl combo)', () => {
+    const level = CAMPAIGN_LEVELS.find((l) => l.id === 'wabe-23')!;
+    expect(level).toBeDefined();
+
+    const state = createGameState(level);
+    runMoves(
+      state,
+      expand([
+        ['down', 1],
+        ['right', 1], // F(2,2)
+        ['left', 1],
+        ['down', 3], // (1,5)
+        ['right', 2], // F(3,5) and frees B(3,6)!
+        ['left', 2], // (1,5)
+        ['down', 4], // (1,9)
+        ['right', 2], // F(3,9)
+        ['left', 2], // (1,9)
+        ['up', 6], // (1,3)
+        ['right', 2], // enters 1(3,3) -> warps to 1(10,4)
+        ['left', 1], // (9,4)
+        ['down', 2], // (9,6) above U(9,7)
+        ['up', 4], // (9,2) opens honey dam
+        ['right', 2], // (11,2)
+        ['down', 5], // (11,7) safely past portal 1(10,4)
+        ['left', 1] // (10,7) right above G(10,8)
+      ])
+    );
+
+    for (let i = 0; i < 30 && !state.gatesOpen; i++) {
+      stepGame(state, null);
+    }
+    expect(state.gatesOpen).toBe(true);
+
+    runMoves(
+      state,
+      expand([
+        ['down', 2], // crosses open G(10,8) to (10,9)
+        ['left', 2], // F(8,9)
+        ['right', 3], // enters 2(11,9) -> warps to 2(15,1)
+        ['down', 1],
+        ['left', 1], // F(14,2)
+        ['left', 1], // (13,2)
+        ['down', 4], // (13,6)
+        ['right', 1], // F(14,6)
+        ['down', 3], // (14,9)
+        ['right', 1], // F(15,9)
+        ['up', 2], // (15,7) frees B(16,7) -> exit opens!
+        ['right', 2], // (17,7)
+        ['up', 6] // enters E(17,1)
+      ])
+    );
+
+    expect(state.status).toBe('won');
+    expect(state.collectedFlowers).toBe(7);
+    expect(state.rescuedBees).toBe(2);
+  });
+
+  it('solves Wabe 24 (Welt 2 grand finale using portals 1 & 2, pressure plate, and honey bowl)', () => {
+    const level = CAMPAIGN_LEVELS.find((l) => l.id === 'wabe-24')!;
+    expect(level).toBeDefined();
+
+    const state = createGameState(level);
+    runMoves(
+      state,
+      expand([
+        ['down', 1],
+        ['right', 1], // F(2,2)
+        ['left', 1],
+        ['down', 4], // (1,6)
+        ['right', 1], // F(2,6)
+        ['down', 1], // (2,7) frees B(3,7)
+        ['down', 2], // (2,9)
+        ['right', 1], // F(3,9)
+        ['left', 2], // (1,9)
+        ['up', 6], // (1,3)
+        ['right', 2], // enters 1(3,3) -> warps to 1(6,1)
+        ['right', 2],
+        ['down', 1], // F(8,2)
+        ['left', 2], // (6,2)
+        ['down', 1], // (6,3)
+        ['right', 2], // pushes O(7,3) -> D(9,3), lands (8,3), T(5,5) opens!
+        ['left', 2], // (6,3)
+        ['up', 2], // steps onto 1(6,1) -> warps back to 1(3,3)
+        ['down', 2], // (3,5)
+        ['right', 5], // crosses open T(5,5) to (8,5), frees B(8,6)!
+        ['down', 2], // F(8,7)
+        ['up', 2], // (8,5)
+        ['right', 6], // (14,5)
+        ['down', 1], // (14,6) above U(14,7)
+        ['up', 4], // (14,2) opens honey dam
+        ['right', 1], // (15,2)
+        ['down', 5] // (15,7) right above G(15,8)
+      ])
+    );
+
+    for (let i = 0; i < 30 && !state.gatesOpen; i++) {
+      stepGame(state, null);
+    }
+    expect(state.gatesOpen).toBe(true);
+
+    runMoves(
+      state,
+      expand([
+        ['down', 2], // crosses open G(15,8) to (15,9)
+        ['left', 1], // F(14,9)
+        ['left', 2], // enters 2(12,9) -> warps to 2(17,1)
+        ['right', 1],
+        ['down', 2], // F(18,3)
+        ['right', 1], // (19,3)
+        ['down', 6], // F(19,9)
+        ['left', 1], // (18,9) frees B(17,9)
+        ['up', 2], // F(18,7) -> exit opens!
+        ['right', 1], // (19,7)
+        ['up', 6] // enters E(19,1)
+      ])
+    );
+
+    expect(state.status).toBe('won');
+    expect(state.gatesOpen).toBe(true);
+    expect(state.petalGatesOpen).toBe(true);
+    expect(state.collectedFlowers).toBe(9);
     expect(state.rescuedBees).toBe(3);
   });
 });

@@ -145,6 +145,14 @@ export class ParticleSystem {
     );
   }
 
+  emitPortalWarp(gridX: number, gridY: number, pair: 0 | 1): void {
+    const colors =
+      pair === 0
+        ? [0xc77dff, 0xb975ff, 0xffe066, 0xffffff]
+        : [0x38d9d2, 0x80ffdb, 0xffe066, 0xffffff];
+    this.spawnBurst(gridX, -gridY, 0.36, 16, colors, 3.2, 0.4, 0.72, 1.05);
+  }
+
   update(dt: number): void {
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
