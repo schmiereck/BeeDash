@@ -1,0 +1,708 @@
+import * as THREE from 'three';
+import { AssetFactory } from './assetFactory';
+
+export type CharacterKey = 'frau_honig' | 'child_girl' | 'child_boy';
+
+export type CharacterPose =
+  | 'wave'
+  | 'cheer'
+  | 'sip_tea'
+  | 'fly_umbrella'
+  | 'blow_bubbles'
+  | 'sit_stargaze';
+
+export interface AnimatedCharacter {
+  root: THREE.Group;
+  ownedMaterials: THREE.Material[];
+  mixer: THREE.AnimationMixer | null;
+  isCustomGlb: boolean;
+  update: (t: number, dt: number, pose: CharacterPose) => void;
+}
+
+interface CharacterRig {
+  bodyGroup: THREE.Group;
+  headPivot: THREE.Group;
+  leftArmPivot: THREE.Group;
+  rightArmPivot: THREE.Group;
+  leftLegPivot: THREE.Group;
+  rightLegPivot: THREE.Group;
+  scarfTailPivot?: THREE.Group;
+  scarfTipPivot?: THREE.Group;
+  leftPigtail?: THREE.Group;
+  rightPigtail?: THREE.Group;
+}
+
+function trackMat<T extends THREE.Material>(owned: THREE.Material[], mat: T): T {
+  owned.push(mat);
+  return mat;
+}
+
+function addLegLimb(
+  pivot: THREE.Group,
+  legMat: THREE.Material,
+  bootMat: THREE.Material,
+  stripeMat?: THREE.Material
+): void {
+  if (stripeMat) {
+    // Bee-striped stockings like Frau Honig's illustration
+    for (let i = 0; i < 4; i++) {
+      const band = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.039 - i * 0.002, 0.037 - i * 0.002, 0.064, 12),
+        i % 2 === 0 ? legMat : stripeMat
+      );
+      band.position.y = -0.04 - i * 0.06;
+      band.castShadow = true;
+      pivot.add(band);
+    }
+  } else {
+    const leg = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.038, 0.032, 0.25, 12),
+      legMat
+    );
+    leg.position.y = -0.13;
+    leg.castShadow = true;
+    pivot.add(leg);
+  }
+
+  // Foot / boot extending cleanly down to y = -0.34 from hip (total y = 0 at rest)
+  const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.044, 0.046, 0.07, 12), bootMat);
+  cuff.position.set(0, -0.275, 0.004);
+  cuff.castShadow = true;
+  pivot.add(cuff);
+
+  const toe = new THREE.Mesh(new THREE.SphereGeometry(0.048, 12, 10), bootMat);
+  toe.scale.set(0.95, 0.72, 1.38);
+  toe.position.set(0, -0.305, 0.032);
+  toe.castShadow = true;
+  pivot.add(toe);
+}
+
+function addArmLimb(
+  pivot: THREE.Group,
+  sleeveMat: THREE.Material,
+  skinMat: THREE.Material
+): void {
+  const sleeve = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.038, 0.031, 0.21, 10),
+    sleeveMat
+  );
+  sleeve.position.y = -0.105;
+  sleeve.castShadow = true;
+  pivot.add(sleeve);
+
+  const hand = new THREE.Mesh(new THREE.SphereGeometry(0.038, 10, 8), skinMat);
+  hand.position.y = -0.22;
+  hand.castShadow = true;
+  pivot.add(hand);
+}
+
+function createCuteFace(
+  headPivot: THREE.Group,
+  owned: THREE.Material[],
+  skinMat: THREE.Material,
+  radius: number
+): void {
+  const head = new THREE.Mesh(new THREE.SphereGeometry(radius, 18, 14), skinMat);
+  head.position.y = radius;
+  head.castShadow = true;
+  headPivot.add(head);
+
+  const eyeMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0x1e130c, roughness: 0.22 })
+  );
+  const shineMat = trackMat(
+    owned,
+    new THREE.MeshBasicMaterial({ color: 0xffffff })
+  );
+  const cheekMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0xf48fa3, roughness: 0.6 })
+  );
+  const smileMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0xb5534b, roughness: 0.45 })
+  );
+
+  for (const side of [-1, 1]) {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(radius * 0.14, 10, 8), eyeMat);
+    eye.position.set(side * radius * 0.34, radius * 1.06, radius * 0.9);
+    headPivot.add(eye);
+
+    const shine = new THREE.Mesh(new THREE.SphereGeometry(radius * 0.055, 6, 6), shineMat);
+    shine.position.set(side * radius * 0.36, radius * 1.11, radius * 1.02);
+    headPivot.add(shine);
+
+    const cheek = new THREE.Mesh(new THREE.SphereGeometry(radius * 0.17, 10, 8), cheekMat);
+    cheek.scale.set(1.15, 0.72, 0.45);
+    cheek.position.set(side * radius * 0.56, radius * 0.84, radius * 0.78);
+    headPivot.add(cheek);
+  }
+
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(radius * 0.11, 8, 8), skinMat);
+  nose.position.set(0, radius * 0.94, radius * 0.98);
+  headPivot.add(nose);
+
+  const smile = new THREE.Mesh(
+    new THREE.TorusGeometry(radius * 0.22, radius * 0.045, 6, 12, Math.PI),
+    smileMat
+  );
+  smile.position.set(0, radius * 0.78, radius * 0.88);
+  smile.rotation.z = Math.PI;
+  smile.rotation.x = 0.25;
+  headPivot.add(smile);
+}
+
+function buildFrauHonigRig(owned: THREE.Material[]): { root: THREE.Group; rig: CharacterRig } {
+  const root = new THREE.Group();
+  const bodyGroup = new THREE.Group();
+  root.add(bodyGroup);
+
+  const skinMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0xf9d6b5, roughness: 0.62 })
+  );
+  const bootMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0x2c2420, roughness: 0.55 })
+  );
+  const tightsYellowMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0xe8ba32, roughness: 0.65 })
+  );
+  const tightsBrownMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0x5c5222, roughness: 0.68 })
+  );
+  const skirtMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0x8aa054, roughness: 0.72 })
+  );
+  const coatMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0xf0ad2e, roughness: 0.58 })
+  );
+  const buttonMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0x7a4822, roughness: 0.5 })
+  );
+  const scarfMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0x84a666, roughness: 0.72 })
+  );
+  const hairMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0x6b472b, roughness: 0.68 })
+  );
+  const hatMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0x74a89a, roughness: 0.65, side: THREE.DoubleSide })
+  );
+  const hatFlowerMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0x9ad1c0, roughness: 0.5 })
+  );
+
+  // Legs (hip at y = 0.34, striped tights + lace-up boots down to y = 0)
+  const leftLegPivot = new THREE.Group();
+  leftLegPivot.position.set(-0.068, 0.34, 0);
+  addLegLimb(leftLegPivot, tightsYellowMat, bootMat, tightsBrownMat);
+  bodyGroup.add(leftLegPivot);
+
+  const rightLegPivot = new THREE.Group();
+  rightLegPivot.position.set(0.068, 0.34, 0);
+  addLegLimb(rightLegPivot, tightsYellowMat, bootMat, tightsBrownMat);
+  bodyGroup.add(rightLegPivot);
+
+  // Olive-green skirt
+  const skirt = new THREE.Mesh(new THREE.CylinderGeometry(0.115, 0.21, 0.19, 18), skirtMat);
+  skirt.position.set(0, 0.38, 0);
+  skirt.scale.z = 0.88;
+  skirt.castShadow = true;
+  bodyGroup.add(skirt);
+
+  // Warm honey-ochre buttoned coat
+  const coat = new THREE.Mesh(new THREE.CylinderGeometry(0.105, 0.15, 0.27, 16), coatMat);
+  coat.position.set(0, 0.55, 0);
+  coat.scale.z = 0.85;
+  coat.castShadow = true;
+  bodyGroup.add(coat);
+
+  for (let i = 0; i < 3; i++) {
+    const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.017, 0.012, 10), buttonMat);
+    btn.rotation.x = Math.PI / 2;
+    btn.position.set(0, 0.6 - i * 0.068, 0.106 + i * 0.008);
+    bodyGroup.add(btn);
+  }
+
+  // Sage-green neck scarf & animated fluttering scarf tail
+  const neckScarf = new THREE.Mesh(new THREE.TorusGeometry(0.095, 0.036, 10, 18), scarfMat);
+  neckScarf.rotation.x = Math.PI / 2;
+  neckScarf.position.set(0, 0.68, 0.005);
+  neckScarf.castShadow = true;
+  bodyGroup.add(neckScarf);
+
+  const scarfTailPivot = new THREE.Group();
+  scarfTailPivot.position.set(-0.085, 0.66, -0.04);
+  const scarfSeg1 = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.042, 0.025), scarfMat);
+  scarfSeg1.position.set(-0.065, 0.01, -0.03);
+  scarfSeg1.rotation.y = 0.45;
+  scarfSeg1.castShadow = true;
+  scarfTailPivot.add(scarfSeg1);
+
+  const scarfTipPivot = new THREE.Group();
+  scarfTipPivot.position.set(-0.12, 0.01, -0.055);
+  const scarfSeg2 = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.036, 0.02), scarfMat);
+  scarfSeg2.position.set(-0.055, 0, -0.02);
+  scarfSeg2.rotation.y = 0.25;
+  scarfSeg2.castShadow = true;
+  scarfTipPivot.add(scarfSeg2);
+  scarfTailPivot.add(scarfTipPivot);
+  bodyGroup.add(scarfTailPivot);
+
+  // Arms
+  const leftArmPivot = new THREE.Group();
+  leftArmPivot.position.set(-0.132, 0.635, 0);
+  addArmLimb(leftArmPivot, coatMat, skinMat);
+  bodyGroup.add(leftArmPivot);
+
+  const rightArmPivot = new THREE.Group();
+  rightArmPivot.position.set(0.132, 0.635, 0);
+  addArmLimb(rightArmPivot, coatMat, skinMat);
+  bodyGroup.add(rightArmPivot);
+
+  // Head + chestnut bob + signature wide-brimmed flower hat
+  const headPivot = new THREE.Group();
+  headPivot.position.set(0, 0.7, 0);
+  createCuteFace(headPivot, owned, skinMat, 0.125);
+
+  const backHair = new THREE.Mesh(new THREE.CylinderGeometry(0.132, 0.165, 0.2, 16), hairMat);
+  backHair.position.set(0, 0.115, -0.022);
+  backHair.castShadow = true;
+  headPivot.add(backHair);
+
+  const topHair = new THREE.Mesh(
+    new THREE.SphereGeometry(0.133, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.56),
+    hairMat
+  );
+  topHair.position.set(0, 0.13, -0.005);
+  headPivot.add(topHair);
+
+  // Wide-brimmed sage-teal sunhat matching the reference illustration
+  const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.36, 0.022, 24), hatMat);
+  brim.position.set(0, 0.205, 0.01);
+  brim.scale.set(1.06, 1, 0.9);
+  brim.rotation.x = -0.06;
+  brim.castShadow = true;
+  headPivot.add(brim);
+
+  const hatCrown = new THREE.Mesh(new THREE.CylinderGeometry(0.125, 0.148, 0.095, 18), hatMat);
+  hatCrown.position.set(0, 0.25, 0.005);
+  hatCrown.castShadow = true;
+  headPivot.add(hatCrown);
+
+  // Decorative 5-petal sage hat flower pinned to brim
+  const hatFlower = new THREE.Group();
+  hatFlower.position.set(-0.14, 0.245, 0.12);
+  hatFlower.rotation.set(0.25, -0.25, 0.2);
+  const fCenter = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 8), coatMat);
+  hatFlower.add(fCenter);
+  const pGeo = new THREE.SphereGeometry(0.028, 8, 6);
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2;
+    const pet = new THREE.Mesh(pGeo, hatFlowerMat);
+    pet.scale.set(1, 0.65, 1);
+    pet.position.set(Math.cos(a) * 0.042, Math.sin(a) * 0.042, 0);
+    hatFlower.add(pet);
+  }
+  headPivot.add(hatFlower);
+
+  bodyGroup.add(headPivot);
+
+  return {
+    root,
+    rig: {
+      bodyGroup,
+      headPivot,
+      leftArmPivot,
+      rightArmPivot,
+      leftLegPivot,
+      rightLegPivot,
+      scarfTailPivot,
+      scarfTipPivot
+    }
+  };
+}
+
+function buildChildGirlRig(owned: THREE.Material[]): { root: THREE.Group; rig: CharacterRig } {
+  const root = new THREE.Group();
+  const bodyGroup = new THREE.Group();
+  root.add(bodyGroup);
+
+  const skinMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0xfbd8ba, roughness: 0.62 })
+  );
+  const bootMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0x8f2d45, roughness: 0.55 })
+  );
+  const tightsMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0xfff3de, roughness: 0.72 })
+  );
+  const dressMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0xe66c85, roughness: 0.6 })
+  );
+  const collarMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0xffd54f, roughness: 0.55 })
+  );
+  const hairMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0x7d4e2d, roughness: 0.68 })
+  );
+
+  const leftLegPivot = new THREE.Group();
+  leftLegPivot.position.set(-0.065, 0.34, 0);
+  addLegLimb(leftLegPivot, tightsMat, bootMat);
+  bodyGroup.add(leftLegPivot);
+
+  const rightLegPivot = new THREE.Group();
+  rightLegPivot.position.set(0.065, 0.34, 0);
+  addLegLimb(rightLegPivot, tightsMat, bootMat);
+  bodyGroup.add(rightLegPivot);
+
+  const dress = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.2, 0.34, 18), dressMat);
+  dress.position.set(0, 0.45, 0);
+  dress.scale.z = 0.88;
+  dress.castShadow = true;
+  bodyGroup.add(dress);
+
+  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.092, 0.026, 8, 16), collarMat);
+  collar.rotation.x = Math.PI / 2;
+  collar.position.set(0, 0.615, 0.005);
+  bodyGroup.add(collar);
+
+  const leftArmPivot = new THREE.Group();
+  leftArmPivot.position.set(-0.125, 0.59, 0);
+  addArmLimb(leftArmPivot, dressMat, skinMat);
+  bodyGroup.add(leftArmPivot);
+
+  const rightArmPivot = new THREE.Group();
+  rightArmPivot.position.set(0.125, 0.59, 0);
+  addArmLimb(rightArmPivot, dressMat, skinMat);
+  bodyGroup.add(rightArmPivot);
+
+  const headPivot = new THREE.Group();
+  headPivot.position.set(0, 0.65, 0);
+  createCuteFace(headPivot, owned, skinMat, 0.135);
+
+  const hairCap = new THREE.Mesh(
+    new THREE.SphereGeometry(0.143, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.6),
+    hairMat
+  );
+  hairCap.position.set(0, 0.14, -0.01);
+  headPivot.add(hairCap);
+
+  // Two playful bouncing ponytails with golden hairbows
+  const createPigtail = (side: -1 | 1): THREE.Group => {
+    const pg = new THREE.Group();
+    pg.position.set(side * 0.135, 0.21, -0.02);
+    const bow = new THREE.Mesh(new THREE.SphereGeometry(0.032, 8, 8), collarMat);
+    pg.add(bow);
+    const tail = new THREE.Mesh(new THREE.ConeGeometry(0.052, 0.17, 10), hairMat);
+    tail.position.set(side * 0.03, -0.08, -0.01);
+    tail.rotation.z = side * 0.35;
+    tail.castShadow = true;
+    pg.add(tail);
+    return pg;
+  };
+  const leftPigtail = createPigtail(-1);
+  const rightPigtail = createPigtail(1);
+  headPivot.add(leftPigtail, rightPigtail);
+  bodyGroup.add(headPivot);
+
+  return {
+    root,
+    rig: {
+      bodyGroup,
+      headPivot,
+      leftArmPivot,
+      rightArmPivot,
+      leftLegPivot,
+      rightLegPivot,
+      leftPigtail,
+      rightPigtail
+    }
+  };
+}
+
+function buildChildBoyRig(owned: THREE.Material[]): { root: THREE.Group; rig: CharacterRig } {
+  const root = new THREE.Group();
+  const bodyGroup = new THREE.Group();
+  root.add(bodyGroup);
+
+  const skinMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0xfad7b6, roughness: 0.62 })
+  );
+  const shoeMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0x5c3a21, roughness: 0.6 })
+  );
+  const denimMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0x5682b0, roughness: 0.68 })
+  );
+  const shirtMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0xfff0c2, roughness: 0.65 })
+  );
+  const stripeMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0xf0ad2e, roughness: 0.58 })
+  );
+  const brassMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0xf2c94c, metalness: 0.45, roughness: 0.35 })
+  );
+  const hairMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0x8c5a32, roughness: 0.68 })
+  );
+
+  const leftLegPivot = new THREE.Group();
+  leftLegPivot.position.set(-0.068, 0.34, 0);
+  addLegLimb(leftLegPivot, denimMat, shoeMat);
+  bodyGroup.add(leftLegPivot);
+
+  const rightLegPivot = new THREE.Group();
+  rightLegPivot.position.set(0.068, 0.34, 0);
+  addLegLimb(rightLegPivot, denimMat, shoeMat);
+  bodyGroup.add(rightLegPivot);
+
+  const torsoShirt = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.105, 0.125, 0.25, 16),
+    shirtMat
+  );
+  torsoShirt.position.set(0, 0.515, 0);
+  torsoShirt.scale.z = 0.85;
+  torsoShirt.castShadow = true;
+  bodyGroup.add(torsoShirt);
+
+  const bibShorts = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.135, 0.16, 16), denimMat);
+  bibShorts.position.set(0, 0.39, 0);
+  bibShorts.scale.z = 0.9;
+  bibShorts.castShadow = true;
+  bodyGroup.add(bibShorts);
+
+  const frontBib = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.14, 0.04), denimMat);
+  frontBib.position.set(0, 0.52, 0.095);
+  bodyGroup.add(frontBib);
+
+  for (const bx of [-0.045, 0.045]) {
+    const strap = new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.15, 0.18), denimMat);
+    strap.position.set(bx, 0.56, 0);
+    bodyGroup.add(strap);
+
+    const btn = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 8), brassMat);
+    btn.position.set(bx, 0.56, 0.116);
+    bodyGroup.add(btn);
+  }
+
+  const shirtBand = new THREE.Mesh(new THREE.CylinderGeometry(0.114, 0.118, 0.045, 16), stripeMat);
+  shirtBand.position.set(0, 0.52, -0.005);
+  shirtBand.scale.z = 0.86;
+  bodyGroup.add(shirtBand);
+
+  const leftArmPivot = new THREE.Group();
+  leftArmPivot.position.set(-0.132, 0.6, 0);
+  addArmLimb(leftArmPivot, shirtMat, skinMat);
+  bodyGroup.add(leftArmPivot);
+
+  const rightArmPivot = new THREE.Group();
+  rightArmPivot.position.set(0.132, 0.6, 0);
+  addArmLimb(rightArmPivot, shirtMat, skinMat);
+  bodyGroup.add(rightArmPivot);
+
+  const headPivot = new THREE.Group();
+  headPivot.position.set(0, 0.66, 0);
+  createCuteFace(headPivot, owned, skinMat, 0.135);
+
+  const hairCap = new THREE.Mesh(
+    new THREE.SphereGeometry(0.143, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.58),
+    hairMat
+  );
+  hairCap.position.set(0, 0.14, -0.012);
+  headPivot.add(hairCap);
+
+  // Tousled front tufts
+  for (let i = -1; i <= 1; i++) {
+    const tuft = new THREE.Mesh(new THREE.ConeGeometry(0.042, 0.085, 8), hairMat);
+    tuft.position.set(i * 0.045, 0.255, 0.078);
+    tuft.rotation.set(0.65, 0, -i * 0.35);
+    headPivot.add(tuft);
+  }
+  bodyGroup.add(headPivot);
+
+  return {
+    root,
+    rig: {
+      bodyGroup,
+      headPivot,
+      leftArmPivot,
+      rightArmPivot,
+      leftLegPivot,
+      rightLegPivot
+    }
+  };
+}
+
+function animateProceduralRig(rig: CharacterRig, t: number, pose: CharacterPose): void {
+  // Neutral defaults
+  rig.bodyGroup.position.set(0, 0, 0);
+  rig.bodyGroup.rotation.set(0, 0, 0);
+  rig.headPivot.rotation.set(0, 0, 0);
+  rig.leftArmPivot.rotation.set(0, 0, 0);
+  rig.rightArmPivot.rotation.set(0, 0, 0);
+  rig.leftLegPivot.rotation.set(0, 0, 0);
+  rig.rightLegPivot.rotation.set(0, 0, 0);
+
+  let scarfEnergy = 1;
+  let hairBounce = Math.abs(Math.sin(t * 2.2)) * 0.08;
+
+  switch (pose) {
+    case 'wave': {
+      rig.bodyGroup.position.y = Math.abs(Math.sin(t * 2.4)) * 0.022;
+      rig.bodyGroup.rotation.z = Math.sin(t * 2.0) * 0.04;
+      rig.headPivot.rotation.z = Math.sin(t * 1.8) * 0.08;
+      rig.headPivot.rotation.y = Math.sin(t * 1.2) * 0.12;
+      rig.leftArmPivot.rotation.z = -0.18 + Math.sin(t * 2.2) * 0.06;
+      rig.rightArmPivot.rotation.z = 2.28 + Math.sin(t * 6.2) * 0.34;
+      rig.rightArmPivot.rotation.x = -0.2;
+      break;
+    }
+    case 'cheer': {
+      const hop = Math.abs(Math.sin(t * 4.4));
+      rig.bodyGroup.position.y = hop * 0.075;
+      rig.bodyGroup.rotation.z = Math.sin(t * 2.2) * 0.06;
+      rig.leftArmPivot.rotation.z = -2.35 - Math.sin(t * 5.4) * 0.25;
+      rig.rightArmPivot.rotation.z = 2.35 + Math.sin(t * 5.4) * 0.25;
+      rig.leftLegPivot.rotation.x = -hop * 0.22;
+      rig.rightLegPivot.rotation.x = hop * 0.18;
+      rig.headPivot.rotation.z = Math.sin(t * 3.0) * 0.1;
+      hairBounce = 0.22 + hop * 0.26;
+      scarfEnergy = 1.6;
+      break;
+    }
+    case 'sip_tea': {
+      rig.bodyGroup.position.y = Math.sin(t * 2.0) * 0.015;
+      rig.bodyGroup.rotation.z = Math.sin(t * 1.6) * 0.045;
+      rig.headPivot.rotation.x = 0.08 + Math.sin(t * 2.4) * 0.07;
+      rig.headPivot.rotation.y = Math.sin(t * 1.3) * 0.14;
+      rig.rightArmPivot.rotation.x = -1.15 - Math.sin(t * 2.6) * 0.28;
+      rig.rightArmPivot.rotation.z = 0.25;
+      rig.leftArmPivot.rotation.z = -0.22;
+      break;
+    }
+    case 'fly_umbrella': {
+      // Both arms reach overhead to grip the umbrella handle while boots dangle playfully
+      rig.bodyGroup.rotation.x = 0.1 + Math.sin(t * 2.3) * 0.06;
+      rig.leftArmPivot.rotation.x = -Math.PI * 0.88;
+      rig.rightArmPivot.rotation.x = -Math.PI * 0.88;
+      rig.leftArmPivot.rotation.z = -0.18;
+      rig.rightArmPivot.rotation.z = 0.18;
+      rig.leftLegPivot.rotation.x = Math.sin(t * 3.6) * 0.28 + 0.12;
+      rig.rightLegPivot.rotation.x = -Math.sin(t * 3.6) * 0.28 + 0.12;
+      rig.headPivot.rotation.x = -0.12 + Math.sin(t * 2.0) * 0.06;
+      scarfEnergy = 2.8;
+      break;
+    }
+    case 'blow_bubbles': {
+      rig.bodyGroup.rotation.z = -0.05 + Math.sin(t * 1.9) * 0.045;
+      rig.leftArmPivot.rotation.x = -0.95 + Math.sin(t * 1.9) * 0.28;
+      rig.leftArmPivot.rotation.z = -0.28;
+      rig.rightArmPivot.rotation.z = 0.35 + Math.sin(t * 2.5) * 0.15;
+      rig.headPivot.rotation.y = -0.18 + Math.sin(t * 1.7) * 0.12;
+      rig.headPivot.rotation.x = -0.12;
+      break;
+    }
+    case 'sit_stargaze': {
+      // Bend legs forward cleanly over bench edge (-angle rotates -Y toward +Z)
+      rig.leftLegPivot.rotation.x = -Math.PI * 0.44;
+      rig.rightLegPivot.rotation.x = -Math.PI * 0.44;
+      rig.bodyGroup.rotation.z = Math.sin(t * 1.2) * 0.025;
+      rig.headPivot.rotation.x = -0.26 + Math.sin(t * 1.1) * 0.06;
+      rig.headPivot.rotation.y = Math.sin(t * 0.85) * 0.16;
+      rig.leftArmPivot.rotation.x = -0.35;
+      rig.rightArmPivot.rotation.x = -0.35;
+      rig.leftArmPivot.rotation.z = -0.14;
+      rig.rightArmPivot.rotation.z = 0.14;
+      scarfEnergy = 0.7;
+      break;
+    }
+  }
+
+  if (rig.scarfTailPivot) {
+    rig.scarfTailPivot.rotation.y = Math.sin(t * 3.4 * scarfEnergy) * 0.24 * scarfEnergy;
+    rig.scarfTailPivot.rotation.z = 0.12 + Math.cos(t * 2.8 * scarfEnergy) * 0.12 * scarfEnergy;
+  }
+  if (rig.scarfTipPivot) {
+    rig.scarfTipPivot.rotation.y = Math.sin(t * 4.5 * scarfEnergy + 0.8) * 0.28 * scarfEnergy;
+  }
+  if (rig.leftPigtail && rig.rightPigtail) {
+    rig.leftPigtail.rotation.z = -hairBounce - Math.sin(t * 4.5) * 0.1;
+    rig.rightPigtail.rotation.z = hairBounce + Math.sin(t * 4.5) * 0.1;
+  }
+}
+
+export function createStageCharacter(assets: AssetFactory, key: CharacterKey): AnimatedCharacter {
+  const custom = assets.createCharacterModel(key);
+  if (custom) {
+    const { object, animations } = custom;
+    let mixer: THREE.AnimationMixer | null = null;
+    if (animations.length > 0) {
+      mixer = new THREE.AnimationMixer(object);
+      const preferred =
+        animations.find((clip) => /wave|cheer|idle|dance|happy/i.test(clip.name)) ?? animations[0];
+      mixer.clipAction(preferred).play();
+    }
+
+    const inner = object;
+    return {
+      root: inner,
+      ownedMaterials: [],
+      mixer,
+      isCustomGlb: true,
+      update: (t, dt, pose) => {
+        if (mixer) {
+          mixer.update(dt);
+        } else {
+          // Subtle lifelike motion for static imported .glb meshes
+          inner.rotation.z = pose === 'cheer' ? Math.sin(t * 3.8) * 0.06 : Math.sin(t * 1.8) * 0.03;
+          inner.rotation.x = pose === 'fly_umbrella' ? 0.1 + Math.sin(t * 2.2) * 0.05 : 0;
+        }
+      }
+    };
+  }
+
+  const ownedMaterials: THREE.Material[] = [];
+  const built =
+    key === 'frau_honig'
+      ? buildFrauHonigRig(ownedMaterials)
+      : key === 'child_girl'
+        ? buildChildGirlRig(ownedMaterials)
+        : buildChildBoyRig(ownedMaterials);
+
+  return {
+    root: built.root,
+    ownedMaterials,
+    mixer: null,
+    isCustomGlb: false,
+    update: (t, _dt, pose) => {
+      animateProceduralRig(built.rig, t, pose);
+    }
+  };
+}

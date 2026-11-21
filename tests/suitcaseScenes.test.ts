@@ -2,6 +2,11 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { AssetFactory } from '../src/render/assetFactory';
 import {
+  CharacterKey,
+  CharacterPose,
+  createStageCharacter
+} from '../src/render/suitcaseCharacters';
+import {
   getSuitcaseSceneById,
   getSuitcaseSceneForLevel,
   SUITCASE_SCENES
@@ -62,6 +67,46 @@ describe('Suitcase 3D Magic Scenes', () => {
       }
 
       for (const mat of runtime.ownedMaterials) {
+        mat.dispose();
+      }
+      for (const tex of runtime.ownedTextures ?? []) {
+        tex.dispose();
+      }
+    }
+  });
+
+  it('builds Frau Honig and both children with feet grounded near y=0 and supports all poses', () => {
+    const assets = new AssetFactory();
+    const keys: CharacterKey[] = ['frau_honig', 'child_girl', 'child_boy'];
+    const poses: CharacterPose[] = [
+      'wave',
+      'cheer',
+      'sip_tea',
+      'fly_umbrella',
+      'blow_bubbles',
+      'sit_stargaze'
+    ];
+
+    for (const key of keys) {
+      const char = createStageCharacter(assets, key);
+      expect(char.root).toBeInstanceOf(THREE.Group);
+      expect(char.root.children.length).toBeGreaterThan(0);
+      expect(char.ownedMaterials.length).toBeGreaterThan(0);
+
+      char.root.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(char.root);
+      const height = box.max.y - box.min.y;
+      expect(box.min.y).toBeGreaterThanOrEqual(-0.08);
+      expect(box.min.y).toBeLessThanOrEqual(0.08);
+      expect(height).toBeGreaterThanOrEqual(0.85);
+      expect(height).toBeLessThanOrEqual(1.25);
+
+      for (const pose of poses) {
+        expect(() => char.update(0.5, 0.016, pose)).not.toThrow();
+        expect(() => char.update(2.2, 0.016, pose)).not.toThrow();
+      }
+
+      for (const mat of char.ownedMaterials) {
         mat.dispose();
       }
     }

@@ -72,7 +72,7 @@ export class AssetFactory {
           if (!url) return;
           try {
             const gltf = await this.loader.loadAsync(url);
-            const normalized = this.normalizeLoadedModel(gltf.scene);
+            const normalized = this.normalizeCharacterModel(gltf.scene);
             normalized.traverse((child) => {
               child.userData.isCustomModel = true;
             });
@@ -123,6 +123,29 @@ export class AssetFactory {
 
     model.scale.multiplyScalar(scale);
     model.position.sub(center.multiplyScalar(scale));
+    model.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
+
+    wrapper.add(model);
+    return wrapper;
+  }
+
+  private normalizeCharacterModel(model: THREE.Object3D): THREE.Group {
+    const wrapper = new THREE.Group();
+    const box = new THREE.Box3().setFromObject(model);
+    const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
+    box.getSize(size);
+    box.getCenter(center);
+
+    const scale = 1.0 / Math.max(size.y, 0.001);
+    model.scale.multiplyScalar(scale);
+    model.position.set(-center.x * scale, -box.min.y * scale, -center.z * scale);
+
     model.traverse((child) => {
       if ((child as THREE.Mesh).isMesh) {
         child.castShadow = true;

@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 import { AssetFactory } from './assetFactory';
 import { createFlowerModel, createHoneyPotModel } from './proceduralModels';
+import {
+  AnimatedCharacter,
+  CharacterKey,
+  createStageCharacter
+} from './suitcaseCharacters';
 
 export interface SuitcaseSceneRuntime {
   root: THREE.Group;
@@ -25,6 +30,26 @@ export interface SuitcaseSceneDefinition {
 function trackMat<T extends THREE.Material>(owned: THREE.Material[], mat: T): T {
   owned.push(mat);
   return mat;
+}
+
+function attachCharacter(
+  parent: THREE.Group,
+  owned: THREE.Material[],
+  mixers: THREE.AnimationMixer[],
+  assets: AssetFactory,
+  key: CharacterKey,
+  scale: number,
+  pos: [number, number, number],
+  rotY = 0
+): AnimatedCharacter {
+  const ch = createStageCharacter(assets, key);
+  ch.root.scale.setScalar(scale);
+  ch.root.position.set(...pos);
+  ch.root.rotation.y = rotY;
+  owned.push(...ch.ownedMaterials);
+  if (ch.mixer) mixers.push(ch.mixer);
+  parent.add(ch.root);
+  return ch;
 }
 
 export function createMagicGlowTexture(): THREE.CanvasTexture | null {
@@ -331,6 +356,12 @@ function buildCherryTreeScene(assets: AssetFactory): SuitcaseSceneRuntime {
     });
   }
 
+  // Frau Honig & two cheerful kids under the blossoms
+  const mixers: THREE.AnimationMixer[] = [];
+  const frauHonig = attachCharacter(root, owned, mixers, assets, 'frau_honig', 1.18, [-1.15, 0.14, 0.48], 0.25);
+  const girl = attachCharacter(root, owned, mixers, assets, 'child_girl', 0.84, [1.02, 0.14, 0.56], -0.2);
+  const boy = attachCharacter(root, owned, mixers, assets, 'child_boy', 0.86, [1.58, 0.14, 0.26], -0.35);
+
   return {
     root,
     lidBackdropColor: 0xffe6ef,
@@ -338,7 +369,15 @@ function buildCherryTreeScene(assets: AssetFactory): SuitcaseSceneRuntime {
     ambientLightColor: 0xfff5ec,
     accentLightColor: 0xffb3c6,
     ownedMaterials: owned,
-    update: (sceneTime, _dt, reveal) => {
+    mixers,
+    update: (sceneTime, dt, reveal) => {
+      const charPop = easeOutBack(Math.min(1, reveal * 1.25));
+      frauHonig.root.scale.setScalar(1.18 * charPop);
+      girl.root.scale.setScalar(0.84 * charPop);
+      boy.root.scale.setScalar(0.86 * charPop);
+      frauHonig.update(sceneTime, dt, 'wave');
+      girl.update(sceneTime + 0.4, dt, 'cheer');
+      boy.update(sceneTime + 0.9, dt, 'wave');
       const grow = easeOutBack(Math.min(1, reveal * 1.25));
       treeGroup.scale.set(
         THREE.MathUtils.lerp(0.15, 1, grow),
@@ -586,6 +625,11 @@ function buildTeaPartyScene(assets: AssetFactory): SuitcaseSceneRuntime {
     root.add(b);
   });
 
+  const mixers: THREE.AnimationMixer[] = [];
+  const frauHonig = attachCharacter(root, owned, mixers, assets, 'frau_honig', 1.15, [-1.42, 0.16, -0.25], 0.35);
+  const girl = attachCharacter(root, owned, mixers, assets, 'child_girl', 0.84, [1.45, 0.16, 0.25], -0.4);
+  const boy = attachCharacter(root, owned, mixers, assets, 'child_boy', 0.86, [-1.25, 0.16, 0.65], 0.45);
+
   return {
     root,
     lidBackdropColor: 0xfff0cc,
@@ -593,8 +637,15 @@ function buildTeaPartyScene(assets: AssetFactory): SuitcaseSceneRuntime {
     ambientLightColor: 0xfff7e2,
     accentLightColor: 0xffc857,
     ownedMaterials: owned,
-    update: (sceneTime, _dt, reveal) => {
+    mixers,
+    update: (sceneTime, dt, reveal) => {
       const pop = easeOutBack(Math.min(1, reveal * 1.15));
+      frauHonig.root.scale.setScalar(1.15 * pop);
+      girl.root.scale.setScalar(0.84 * pop);
+      boy.root.scale.setScalar(0.86 * pop);
+      frauHonig.update(sceneTime, dt, 'sip_tea');
+      girl.update(sceneTime + 0.5, dt, 'cheer');
+      boy.update(sceneTime + 0.2, dt, 'sip_tea');
 
       // Orbit & bob 3 teacups
       teacups.forEach((cup, idx) => {
@@ -717,6 +768,11 @@ function buildBeeHeartScene(assets: AssetFactory): SuitcaseSceneRuntime {
     return [x * scale, 2.15 + y * scale];
   };
 
+  const mixers: THREE.AnimationMixer[] = [];
+  const frauHonig = attachCharacter(root, owned, mixers, assets, 'frau_honig', 1.18, [-1.18, 0.14, 0.36], 0.25);
+  const girl = attachCharacter(root, owned, mixers, assets, 'child_girl', 0.84, [1.05, 0.14, 0.48], -0.25);
+  const boy = attachCharacter(root, owned, mixers, assets, 'child_boy', 0.86, [1.62, 0.14, 0.18], -0.35);
+
   return {
     root,
     lidBackdropColor: 0xffeab8,
@@ -725,8 +781,15 @@ function buildBeeHeartScene(assets: AssetFactory): SuitcaseSceneRuntime {
     accentLightColor: 0xffae24,
     ownedMaterials: owned,
     ownedTextures,
-    update: (sceneTime, _dt, reveal) => {
+    mixers,
+    update: (sceneTime, dt, reveal) => {
       const potPop = easeOutBack(Math.min(1, reveal * 1.25));
+      frauHonig.root.scale.setScalar(1.18 * potPop);
+      girl.root.scale.setScalar(0.84 * potPop);
+      boy.root.scale.setScalar(0.86 * potPop);
+      frauHonig.update(sceneTime, dt, 'wave');
+      girl.update(sceneTime + 0.3, dt, 'cheer');
+      boy.update(sceneTime + 0.8, dt, 'cheer');
       heroPot.scale.setScalar(1.42 * potPop);
       heroPot.rotation.y = Math.sin(sceneTime * 0.7) * 0.22;
 
@@ -769,14 +832,14 @@ function buildUmbrellaFlightScene(assets: AssetFactory): SuitcaseSceneRuntime {
   const root = new THREE.Group();
   const owned: THREE.Material[] = [];
 
-  // Cozy miniature village rooftops along bottom
+  // Cozy miniature village rooftops along bottom back
   const houseSpecs: Array<{ x: number; z: number; w: number; h: number; wall: number; roof: number }> =
     [
-      { x: -1.9, z: -0.35, w: 0.68, h: 0.65, wall: 0xfff0cc, roof: 0xd9604c },
-      { x: -1.0, z: 0.22, w: 0.72, h: 0.78, wall: 0xfde2c8, roof: 0x5c7ca8 },
-      { x: -0.05, z: -0.45, w: 0.8, h: 0.9, wall: 0xfff6dd, roof: 0xd95f76 },
-      { x: 0.95, z: 0.18, w: 0.68, h: 0.72, wall: 0xfbe5c0, roof: 0x67a36f },
-      { x: 1.85, z: -0.32, w: 0.7, h: 0.68, wall: 0xfff1cf, roof: 0xc9733a }
+      { x: -1.9, z: -0.58, w: 0.65, h: 0.56, wall: 0xfff0cc, roof: 0xd9604c },
+      { x: -1.0, z: -0.22, w: 0.68, h: 0.64, wall: 0xfde2c8, roof: 0x5c7ca8 },
+      { x: -0.05, z: -0.62, w: 0.74, h: 0.72, wall: 0xfff6dd, roof: 0xd95f76 },
+      { x: 0.95, z: -0.24, w: 0.65, h: 0.6, wall: 0xfbe5c0, roof: 0x67a36f },
+      { x: 1.85, z: -0.55, w: 0.66, h: 0.58, wall: 0xfff1cf, roof: 0xc9733a }
     ];
   const windowMat = trackMat(
     owned,
@@ -904,6 +967,21 @@ function buildUmbrellaFlightScene(assets: AssetFactory): SuitcaseSceneRuntime {
     root.add(b);
   });
 
+  // Frau Honig sails high overhead holding the magic umbrella while children cheer from the village!
+  const mixers: THREE.AnimationMixer[] = [];
+  const frauHonig = attachCharacter(
+    umbrella,
+    owned,
+    mixers,
+    assets,
+    'frau_honig',
+    0.92,
+    [0, -1.68, 0],
+    0
+  );
+  const girl = attachCharacter(root, owned, mixers, assets, 'child_girl', 0.82, [-0.45, 0.14, 0.88], 0.18);
+  const boy = attachCharacter(root, owned, mixers, assets, 'child_boy', 0.84, [0.55, 0.14, 0.84], -0.18);
+
   return {
     root,
     lidBackdropColor: 0xcbe8ff,
@@ -911,7 +989,8 @@ function buildUmbrellaFlightScene(assets: AssetFactory): SuitcaseSceneRuntime {
     ambientLightColor: 0xf4faff,
     accentLightColor: 0xffe082,
     ownedMaterials: owned,
-    update: (sceneTime, _dt, reveal) => {
+    mixers,
+    update: (sceneTime, dt, reveal) => {
       const pop = easeOutBack(Math.min(1, reveal * 1.2));
       housesGroup.scale.set(1, Math.max(0.05, pop), 1);
 
@@ -922,14 +1001,20 @@ function buildUmbrellaFlightScene(assets: AssetFactory): SuitcaseSceneRuntime {
         c.group.scale.setScalar(pop);
       });
 
-      const ux = Math.sin(sceneTime * 0.85) * 1.45;
-      const uy = 2.18 + Math.sin(sceneTime * 1.9) * 0.22;
-      const uz = Math.cos(sceneTime * 0.85) * 0.48;
+      const ux = Math.sin(sceneTime * 0.85) * 1.4;
+      const uy = 2.66 + Math.sin(sceneTime * 1.9) * 0.14;
+      const uz = 0.36 + Math.cos(sceneTime * 0.85) * 0.28;
       umbrella.position.set(ux, uy * pop, uz);
-      umbrella.rotation.z = -Math.cos(sceneTime * 0.85) * 0.26;
-      umbrella.rotation.x = Math.sin(sceneTime * 1.4) * 0.1;
-      umbrella.rotation.y = sceneTime * 0.35;
+      umbrella.rotation.z = -Math.cos(sceneTime * 0.85) * 0.18;
+      umbrella.rotation.x = Math.sin(sceneTime * 1.4) * 0.08;
+      umbrella.rotation.y = Math.cos(sceneTime * 0.85) * 0.25;
       umbrella.scale.setScalar(pop);
+
+      frauHonig.update(sceneTime, dt, 'fly_umbrella');
+      girl.root.scale.setScalar(0.82 * pop);
+      boy.root.scale.setScalar(0.84 * pop);
+      girl.update(sceneTime + 0.3, dt, 'cheer');
+      boy.update(sceneTime + 0.7, dt, 'wave');
 
       windMotes.forEach((m, idx) => {
         const t = ((sceneTime * 0.55 + idx * 0.23) % 1);
@@ -1059,6 +1144,11 @@ function buildSoapBubblesScene(assets: AssetFactory): SuitcaseSceneRuntime {
     root.add(b);
   });
 
+  const mixers: THREE.AnimationMixer[] = [];
+  const frauHonig = attachCharacter(root, owned, mixers, assets, 'frau_honig', 1.15, [-0.88, 0.14, 0.36], 0.18);
+  const girl = attachCharacter(root, owned, mixers, assets, 'child_girl', 0.84, [0.85, 0.14, 0.56], -0.25);
+  const boy = attachCharacter(root, owned, mixers, assets, 'child_boy', 0.86, [1.58, 0.14, 0.25], -0.35);
+
   return {
     root,
     lidBackdropColor: 0xd9f5ff,
@@ -1066,8 +1156,15 @@ function buildSoapBubblesScene(assets: AssetFactory): SuitcaseSceneRuntime {
     ambientLightColor: 0xf7fdff,
     accentLightColor: 0xffb7d5,
     ownedMaterials: owned,
-    update: (sceneTime, _dt, reveal) => {
+    mixers,
+    update: (sceneTime, dt, reveal) => {
       const pop = easeOutBack(Math.min(1, reveal * 1.2));
+      frauHonig.root.scale.setScalar(1.15 * pop);
+      girl.root.scale.setScalar(0.84 * pop);
+      boy.root.scale.setScalar(0.86 * pop);
+      frauHonig.update(sceneTime, dt, 'blow_bubbles');
+      girl.update(sceneTime + 0.4, dt, 'cheer');
+      boy.update(sceneTime + 0.9, dt, 'wave');
       wandGroup.rotation.z = Math.sin(sceneTime * 1.9) * 0.22 - 0.18;
       wandGroup.rotation.y = Math.cos(sceneTime * 1.4) * 0.24;
       wandGroup.scale.setScalar(pop);
@@ -1252,6 +1349,30 @@ function buildFireflyNightScene(assets: AssetFactory): SuitcaseSceneRuntime {
     root.add(b);
   });
 
+  // Frau Honig & girl sit cozily on the garden bench looking at moon/fireflies; boy waves beside the lantern
+  const mixers: THREE.AnimationMixer[] = [];
+  const frauHonig = attachCharacter(
+    bench,
+    owned,
+    mixers,
+    assets,
+    'frau_honig',
+    1.12,
+    [-0.2, 0.37 - 0.32 * 1.12, 0.04],
+    0
+  );
+  const girl = attachCharacter(
+    bench,
+    owned,
+    mixers,
+    assets,
+    'child_girl',
+    0.84,
+    [0.24, 0.37 - 0.32 * 0.84, 0.04],
+    -0.12
+  );
+  const boy = attachCharacter(root, owned, mixers, assets, 'child_boy', 0.86, [0.95, 0.14, 0.48], -0.2);
+
   return {
     root,
     lidBackdropColor: 0x1e2554,
@@ -1260,9 +1381,14 @@ function buildFireflyNightScene(assets: AssetFactory): SuitcaseSceneRuntime {
     accentLightColor: 0xffd166,
     ownedMaterials: owned,
     ownedTextures,
-    update: (sceneTime, _dt, reveal) => {
+    mixers,
+    update: (sceneTime, dt, reveal) => {
       const pop = easeOutBack(Math.min(1, reveal * 1.2));
       bench.scale.setScalar(pop);
+      boy.root.scale.setScalar(0.86 * pop);
+      frauHonig.update(sceneTime, dt, 'sit_stargaze');
+      girl.update(sceneTime + 0.6, dt, 'sit_stargaze');
+      boy.update(sceneTime + 0.3, dt, 'wave');
       lantern.scale.set(1, Math.max(0.05, pop), 1);
       lanternLight.intensity = (1.65 + Math.sin(sceneTime * 4.5) * 0.25) * reveal;
 
@@ -1312,42 +1438,42 @@ export const SUITCASE_SCENES: SuitcaseSceneDefinition[] = [
     id: 'cherry_tree',
     emoji: '🌸',
     title: 'Der blühende Zauber-Kirschbaum',
-    caption: 'Aus Frau Honigs Koffer wächst ein Kirschbaum voller summender Bienen und rosa Blüten!',
+    caption: 'Frau Honig und die Kinder staunen unter dem blühenden Kirschbaum aus dem Koffer!',
     build: buildCherryTreeScene
   },
   {
     id: 'honey_teaparty',
     emoji: '🫖',
     title: 'Die schwebende Honig-Teeparty',
-    caption: 'Porzellankanne und Tassen tanzen fröhlich in der Luft, während goldener Honigtee fließt!',
+    caption: 'Mit Frau Honig fliegen Porzellankanne und Tassen fröhlich durch die Luft!',
     build: buildTeaPartyScene
   },
   {
     id: 'bee_heart',
     emoji: '💛',
     title: 'Das tanzende Bienen-Herz',
-    caption: 'Alle kleinen Bienen wirbeln hoch über dem großen Honigtopf und formen ein goldenes Herz!',
+    caption: 'Frau Honig und die Kinder jubeln, als die Bienen über dem Honigtopf ein goldenes Herz formen!',
     build: buildBeeHeartScene
   },
   {
     id: 'umbrella_flight',
     emoji: '☂️',
     title: 'Der Regenschirm-Windflug',
-    caption: 'Ein bunter Zauberschirm segelt im fröhlichen Wind über die kleinen Dächer!',
+    caption: 'Hui! Frau Honig segelt mit ihrem bunten Schirm über die Dächer und die Kinder winken ihr zu!',
     build: buildUmbrellaFlightScene
   },
   {
     id: 'soap_bubbles',
     emoji: '🫧',
     title: 'Der Seifenblasen-Zauber',
-    caption: 'Große schillernde Seifenblasen steigen empor – und in jeder funkelt ein kleiner Stern!',
+    caption: 'Frau Honig zaubert riesige schillernde Seifenblasen mit Sternen für die Kinder!',
     build: buildSoapBubblesScene
   },
   {
     id: 'firefly_night',
     emoji: '✨',
     title: 'Die Glühwürmchen-Sternennacht',
-    caption: 'Mond, Gartenlaterne und zwanzig Glühwürmchen funkeln in einer warmen Zaubernacht.',
+    caption: 'Auf der Gartenbank schauen Frau Honig und die Kinder in eine funkelnde Glühwürmchen-Nacht.',
     build: buildFireflyNightScene
   }
 ];

@@ -502,12 +502,6 @@ export class SuitcaseStageOverlay {
       this.actionsEl?.classList.add('visible');
     }
 
-    if (this.sceneRuntime?.mixers) {
-      for (const mixer of this.sceneRuntime.mixers) {
-        mixer.update(safeDt);
-      }
-    }
-
     this.applyAnimationState(safeDt);
     this.renderer.render(this.scene, this.camera);
   }

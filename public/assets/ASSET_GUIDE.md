@@ -42,9 +42,41 @@ Beispiel für `manifest.json`:
     "honeypot": "assets/models/honigtopf.glb",
     "flower": "assets/models/blume.glb"
   },
+  "characters": {
+    "frau_honig": "assets/models/frau_honig.glb",
+    "child_girl": "assets/models/maedchen.glb",
+    "child_boy": "assets/models/junge.glb"
+  },
   "audio": {}
 }
 ```
+
+---
+
+## 2b. Animierte 3D-Figuren für die Koffer-Bühne (`characters`)
+
+In `public/assets/manifest.json` können unter `"characters"` fertige `.glb`-Figuren (z. B. aus **Higgsfield** oder **Meshy** per Image-to-3D) hinterlegt werden:
+
+| Schlüssel | Rolle in den Koffer-Szenen | Hinweise |
+| :--- | :--- | :--- |
+| `frau_honig` | Frau Honig | Höhe wird automatisch auf `1.0` normiert, Füße bündig auf `y = 0` |
+| `child_girl` | Mädchen | Blickrichtung `+Z`, optionale GLB-Animationen spielen automatisch |
+| `child_boy` | Junge | Falls statisch ohne Rig, wiegt sich das Modell sanft im Takt |
+
+### Hinweis zu MCP (Higgsfield / Meshy)
+- Higgsfield bietet einen gehosteten MCP-Endpunkt unter `https://mcp.higgsfield.ai/mcp` (Anmeldung über Higgsfield-Account).
+- In Antigravity lässt er sich global in `~/.gemini/config/mcp_config.json` unter `"mcpServers"` eintragen:
+  ```json
+  {
+    "mcpServers": {
+      "higgsfield": {
+        "url": "https://mcp.higgsfield.ai/mcp"
+      }
+    }
+  }
+  ```
+- Alternativ eignen sich auch Image-to-3D-MCPs mit Auto-Rigging wie **Meshy**.  
+  *(Wichtig fürs öffentliche GitHub-Repository: als Bildvorlagen für 3D-Modelle möglichst eigene/KI-generierte Zeichnungen verwenden, keine eingescannten Original-Buchseiten.)*
 
 ---
 
