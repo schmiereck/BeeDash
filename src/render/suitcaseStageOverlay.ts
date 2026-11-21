@@ -8,6 +8,11 @@ import {
   SuitcaseSceneRuntime
 } from './suitcaseScenes';
 
+export interface SuitcaseStageOptions {
+  eyebrow?: string;
+  continueLabel?: string;
+}
+
 export interface SuitcaseStageCallbacks {
   onZoomStart?: () => void;
   onLidOpen?: () => void;
@@ -94,7 +99,8 @@ export class SuitcaseStageOverlay {
   start(
     level: LevelDefinition,
     originNdc: { ndcX: number; ndcY: number },
-    callbacks: SuitcaseStageCallbacks
+    callbacks: SuitcaseStageCallbacks,
+    options?: SuitcaseStageOptions
   ): void {
     this.stop();
 
@@ -107,18 +113,21 @@ export class SuitcaseStageOverlay {
     this.callbacks = callbacks;
 
     const sceneDef = getSuitcaseSceneForLevel(level.number);
+    const eyebrowText =
+      options?.eyebrow ?? `${sceneDef.emoji} In Frau Honigs Koffer • Wabe ${level.number}`;
+    const continueLabel = options?.continueLabel ?? '🎉 Weiter';
 
     this.root.innerHTML = `
       <div id="suitcase-backdrop" class="suitcase-backdrop"></div>
       <div id="suitcase-canvas-wrap" class="suitcase-canvas-wrap"></div>
       <div id="suitcase-caption-bar" class="suitcase-caption-bar">
-        <div class="suitcase-eyebrow">${sceneDef.emoji} In Frau Honigs Koffer • Wabe ${level.number}</div>
+        <div class="suitcase-eyebrow">${eyebrowText}</div>
         <div class="suitcase-scene-title">${sceneDef.title}</div>
         <div class="suitcase-scene-caption">${sceneDef.caption}</div>
       </div>
       <div id="suitcase-actions" class="suitcase-actions">
         <button id="suitcase-replay-btn" class="btn btn-secondary" type="button">🔄 Nochmal öffnen</button>
-        <button id="suitcase-continue-btn" class="btn btn-green" type="button">🎉 Weiter</button>
+        <button id="suitcase-continue-btn" class="btn btn-green" type="button">${continueLabel}</button>
       </div>
     `;
     this.root.classList.remove('hidden');

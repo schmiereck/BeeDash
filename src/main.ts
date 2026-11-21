@@ -28,6 +28,8 @@ import { BoardRenderer } from './render/boardRenderer';
 import { CameraRig } from './render/cameraRig';
 import { SceneManager } from './render/sceneManager';
 import { SleepSwarmOverlay } from './render/sleepSwarmOverlay';
+import { StudioOverlay } from './render/studioOverlay';
+import { SUITCASE_SCENES } from './render/suitcaseScenes';
 import { SuitcaseStageOverlay } from './render/suitcaseStageOverlay';
 import { Dialogs } from './ui/dialogs';
 import { HiveMap } from './ui/hiveMap';
@@ -45,6 +47,7 @@ async function bootstrap(): Promise<void> {
   const toastEl = document.getElementById('level-toast')!;
   const sleepLockRootEl = document.getElementById('sleep-lock-root')!;
   const suitcaseStageRootEl = document.getElementById('suitcase-stage-root')!;
+  const studioRootEl = document.getElementById('studio-root')!;
 
   const assets = new AssetFactory();
   await assets.init();
@@ -70,6 +73,7 @@ async function bootstrap(): Promise<void> {
   let settings: GameSettings = loadSettings();
   let sessionElapsedMs = 0;
   let settingsOpen = false;
+  let studioOpen = false;
   let activeScreen: 'map' | 'game' = 'map';
   let currentLevel: LevelDefinition | null = null;
   let gameState: GameState | null = null;
@@ -127,10 +131,52 @@ async function bootstrap(): Promise<void> {
     }
   });
 
+  const studioOverlay = new StudioOverlay(studioRootEl, assets, {
+    onClose: () => {
+      studioOpen = false;
+      sounds.play('ui_click');
+      if (activeScreen === 'map' && !sleepOverlay.isActive()) {
+        sounds.setMapMusicActive(true);
+      }
+    },
+    onPreviewSuitcaseScene: (sceneIndex) => {
+      studioOverlay.setPausedForPreview(true);
+      const previewLevel = CAMPAIGN_LEVELS[sceneIndex] ?? CAMPAIGN_LEVELS[0];
+      const sceneDef = SUITCASE_SCENES[sceneIndex] ?? SUITCASE_SCENES[0];
+      suitcaseStage.start(
+        previewLevel,
+        { ndcX: 0, ndcY: 0 },
+        {
+          onZoomStart: () => sounds.play('suitcase_zoom'),
+          onLidOpen: () => sounds.play('suitcase_open'),
+          onContinue: () => {
+            sounds.play('ui_click');
+            studioOverlay.setPausedForPreview(false);
+          }
+        },
+        {
+          eyebrow: `${sceneDef.emoji} 3D-Atelier Vorschau • Szene ${sceneIndex + 1}/${SUITCASE_SCENES.length}`,
+          continueLabel: '🎭 Zurück ins Atelier'
+        }
+      );
+    }
+  });
+
+  const openStudio = () => {
+    settingsOpen = false;
+    studioOpen = true;
+    dialogs.close();
+    hideToast();
+    sounds.setMapMusicActive(false);
+    studioOverlay.open();
+  };
+
   const enterSleepLock = () => {
     if (sleepOverlay.isActive()) return;
     settingsOpen = false;
+    studioOpen = false;
     clearTimers();
+    studioOverlay.close(false);
     suitcaseStage.stop();
     dialogs.close();
     hideToast();
@@ -257,6 +303,10 @@ async function bootstrap(): Promise<void> {
             settingsOpen = false;
             enterSleepLock();
           },
+          onOpenStudio: () => {
+            sounds.play('ui_click');
+            openStudio();
+          },
           onResetProgress: () => {
             progress = resetProgress();
             currentLevel = null;
@@ -301,6 +351,8 @@ async function bootstrap(): Promise<void> {
       dialogs.moveSelection(dir);
     } else if (suitcaseStage.isActive()) {
       suitcaseStage.moveSelection(dir);
+    } else if (studioOverlay.isActive()) {
+      return;
     } else if (activeScreen === 'map') {
       hiveMap.moveSelection(dir);
     }
@@ -323,6 +375,13 @@ async function bootstrap(): Promise<void> {
         suitcaseStage.confirmSelection();
       } else if (action === 'menu') {
         suitcaseStage.finish();
+      }
+      return;
+    }
+
+    if (studioOverlay.isActive()) {
+      if (action === 'menu') {
+        studioOverlay.close();
       }
       return;
     }
@@ -356,21 +415,30 @@ async function bootstrap(): Promise<void> {
 
   // Initial render of Hexagonal Hive Map & start calm map melody
   refreshMap(Math.min(progress.unlockedUpTo, CAMPAIGN_LEVELS.length));
-  sounds.setMapMusicActive(true);
 
-  try {
-    if (!localStorage.getItem(WELCOMED_KEY)) {
-      dialogs.showWelcome(() => {
-        try {
-          localStorage.setItem(WELCOMED_KEY, 'true');
-        } catch {
-          // Ignore storage error
-        }
-        sounds.play('ui_click');
-      });
+  const openStudioViaUrl =
+    new URLSearchParams(window.location.search).get('studio') === '1' ||
+    window.location.hash === '#studio';
+
+  if (openStudioViaUrl) {
+    openStudio();
+  } else {
+    sounds.setMapMusicActive(true);
+
+    try {
+      if (!localStorage.getItem(WELCOMED_KEY)) {
+        dialogs.showWelcome(() => {
+          try {
+            localStorage.setItem(WELCOMED_KEY, 'true');
+          } catch {
+            // Ignore storage error
+          }
+          sounds.play('ui_click');
+        });
+      }
+    } catch {
+      // Ignore storage error
     }
-  } catch {
-    // Ignore storage error
   }
 
   const frame = (nowMs: number) => {
@@ -383,7 +451,7 @@ async function bootstrap(): Promise<void> {
       return;
     }
 
-    if (!settingsOpen) {
+    if (!settingsOpen && !studioOpen) {
       sessionElapsedMs += dt * 1000;
       if (isPlaytimeLimitReached(sessionElapsedMs, settings.playtimeLimitMinutes)) {
         enterSleepLock();
@@ -394,13 +462,16 @@ async function bootstrap(): Promise<void> {
 
     const dir = input.poll(nowMs);
 
-    if (activeScreen === 'map') {
+    if (activeScreen === 'map' && !studioOverlay.isActive()) {
       hiveMap.updateAnimation(dt);
     }
 
     if (activeScreen === 'game' && gameState && currentLevel) {
       const paused =
-        dialogs.isOpen() || suitcaseStage.isActive() || gameState.status !== 'playing';
+        dialogs.isOpen() ||
+        suitcaseStage.isActive() ||
+        studioOverlay.isActive() ||
+        gameState.status !== 'playing';
       let tickProgress = 1;
 
       if (paused) {
@@ -512,10 +583,14 @@ async function bootstrap(): Promise<void> {
       hud.updateExitArrow(gameState.exitOpen && gameState.status === 'playing', exitHint);
 
       sceneManager.render(cameraRig.camera);
+    }
 
-      if (suitcaseStage.isActive()) {
-        suitcaseStage.update(dt);
-      }
+    if (suitcaseStage.isActive()) {
+      suitcaseStage.update(dt);
+    }
+
+    if (studioOverlay.isActive()) {
+      studioOverlay.update(dt);
     }
 
     requestAnimationFrame(frame);

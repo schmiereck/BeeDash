@@ -511,6 +511,7 @@ export class Dialogs {
       onChangeLimit: (minutes: number) => void;
       onResetTimer: () => void;
       onPreviewSleep: () => void;
+      onOpenStudio: () => void;
       onResetProgress: () => void;
       onClose: () => void;
     }
@@ -575,6 +576,7 @@ export class Dialogs {
           <div style="display:flex; flex-wrap:wrap; gap:0.5rem; justify-content:center; margin-top:0.75rem;">
             <button id="settings-reset-timer" class="btn btn-secondary btn-compact" type="button">⏱️ Spielzeit zurücksetzen</button>
             <button id="settings-preview-sleep" class="btn btn-pink btn-compact" type="button">🎬 Pausen-Animation testen</button>
+            <button id="settings-open-studio" class="btn btn-compact" type="button">🎭 3D-Atelier (Modelle & Szenen)</button>
           </div>
           <hr class="settings-divider" />
           <p style="font-weight:800; margin:0.25rem 0;">Spielfortschritt:</p>
@@ -620,6 +622,11 @@ export class Dialogs {
       this.root.querySelector('#settings-preview-sleep')?.addEventListener('click', () => {
         this.close();
         callbacks.onPreviewSleep();
+      });
+
+      this.root.querySelector('#settings-open-studio')?.addEventListener('click', () => {
+        this.close();
+        callbacks.onOpenStudio();
       });
 
       this.root.querySelector('#settings-reset-progress')?.addEventListener('click', () => {
