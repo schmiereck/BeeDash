@@ -32,6 +32,29 @@ export interface PortalDef {
   pair: 0 | 1;
 }
 
+export type PestKind = 'grub' | 'mite';
+
+export interface PestEntity {
+  id: number;
+  kind: PestKind;
+  x: number;
+  y: number;
+  prevX: number;
+  prevY: number;
+  facing: Direction;
+  moveCooldown: number;
+  sleepTicks: number;
+}
+
+export interface RegrowingFlower {
+  id: number;
+  x: number;
+  y: number;
+  variant: number;
+  ticksRemaining: number;
+  totalTicks: number;
+}
+
 export type FallState = 'resting' | 'wobbling' | 'falling';
 
 export type GameStatus = 'playing' | 'won' | 'lost';
@@ -83,6 +106,10 @@ export type GameEvent =
   | { type: 'bonk_pot'; x: number; y: number }
   | { type: 'sticky_wings'; x: number; y: number }
   | { type: 'sticky_blocked'; x: number; y: number }
+  | { type: 'pest_dig'; x: number; y: number; kind: PestKind }
+  | { type: 'pest_eat_flower'; x: number; y: number; kind: PestKind }
+  | { type: 'flower_regrow'; x: number; y: number }
+  | { type: 'pest_sleep'; x: number; y: number; kind: PestKind }
   | { type: 'win'; x: number; y: number };
 
 export interface LevelDefinition {
@@ -126,6 +153,8 @@ export interface GameState {
   totalPlates: number;
   petalGatesOpen: boolean;
   portals: PortalDef[];
+  pests: PestEntity[];
+  regrowingFlowers: RegrowingFlower[];
   exitOpen: boolean;
   moves: number;
   nextEntityId: number;

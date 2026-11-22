@@ -127,6 +127,41 @@ const SHARED_MATERIALS = {
   petalBarCream: new THREE.MeshStandardMaterial({
     color: 0xfff3db,
     roughness: 0.5
+  }),
+  grubBody: new THREE.MeshStandardMaterial({
+    color: 0xf6f0c2,
+    roughness: 0.52
+  }),
+  grubStripe: new THREE.MeshStandardMaterial({
+    color: 0x9cd66d,
+    roughness: 0.55
+  }),
+  grubHead: new THREE.MeshStandardMaterial({
+    color: 0xffe49e,
+    roughness: 0.45
+  }),
+  miteBody: new THREE.MeshStandardMaterial({
+    color: 0xd94854,
+    roughness: 0.36,
+    metalness: 0.05
+  }),
+  miteSpot: new THREE.MeshStandardMaterial({
+    color: 0xffb74d,
+    roughness: 0.4
+  }),
+  miteLeg: new THREE.MeshStandardMaterial({
+    color: 0x6e272e,
+    roughness: 0.5
+  }),
+  budCalyx: new THREE.MeshStandardMaterial({
+    color: 0x6ac266,
+    roughness: 0.52
+  }),
+  sleepZ: new THREE.MeshStandardMaterial({
+    color: 0xa5d8ff,
+    emissive: 0x639cd9,
+    emissiveIntensity: 0.45,
+    roughness: 0.3
   })
 };
 
@@ -1314,6 +1349,252 @@ export function createPortalModel(pair: 0 | 1): THREE.Group {
     glowMat: petalMat,
     discMat,
     disposableMaterials
+  };
+  return root;
+}
+
+export function createGrubModel(): THREE.Group {
+  const root = new THREE.Group();
+  const segments: THREE.Group[] = [];
+
+  const tailSpecs = [
+    { z: -0.24, r: 0.145, mat: SHARED_MATERIALS.grubStripe },
+    { z: -0.09, r: 0.175, mat: SHARED_MATERIALS.grubBody },
+    { z: 0.07, r: 0.185, mat: SHARED_MATERIALS.grubStripe }
+  ];
+
+  for (const spec of tailSpecs) {
+    const segGroup = new THREE.Group();
+    segGroup.position.set(0, -0.02, spec.z);
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(spec.r, 14, 12), spec.mat);
+    mesh.scale.set(1.02, 0.92, 1.05);
+    segGroup.add(mesh);
+    root.add(segGroup);
+    segments.push(segGroup);
+  }
+
+  const headGroup = new THREE.Group();
+  headGroup.position.set(0, 0.02, 0.22);
+
+  const head = new THREE.Mesh(
+    new THREE.SphereGeometry(0.16, 16, 14),
+    SHARED_MATERIALS.grubHead
+  );
+  head.scale.set(1.02, 0.96, 0.95);
+  headGroup.add(head);
+
+  for (const side of [-1, 1]) {
+    const eye = new THREE.Mesh(
+      new THREE.SphereGeometry(0.032, 10, 8),
+      SHARED_MATERIALS.eyeDark
+    );
+    eye.position.set(side * 0.068, 0.045, 0.125);
+    headGroup.add(eye);
+
+    const shine = new THREE.Mesh(
+      new THREE.SphereGeometry(0.011, 8, 6),
+      SHARED_MATERIALS.eyeShine
+    );
+    shine.position.set(side * 0.068 + 0.01, 0.056, 0.15);
+    headGroup.add(shine);
+
+    const cheek = new THREE.Mesh(
+      new THREE.SphereGeometry(0.032, 8, 8),
+      SHARED_MATERIALS.beeCheek
+    );
+    cheek.scale.set(1.1, 0.72, 0.55);
+    cheek.position.set(side * 0.105, -0.02, 0.1);
+    headGroup.add(cheek);
+
+    const feeler = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.01, 0.014, 0.085, 6),
+      SHARED_MATERIALS.grubStripe
+    );
+    feeler.position.set(side * 0.045, 0.155, 0.05);
+    feeler.rotation.z = -side * 0.3;
+    feeler.rotation.x = 0.25;
+    headGroup.add(feeler);
+  }
+
+  root.add(headGroup);
+
+  const sleepGroup = new THREE.Group();
+  sleepGroup.visible = false;
+  for (let i = 0; i < 3; i++) {
+    const zOrb = new THREE.Mesh(
+      new THREE.SphereGeometry(0.042 + i * 0.012, 8, 8),
+      SHARED_MATERIALS.sleepZ
+    );
+    zOrb.position.set(0.06 + i * 0.05, 0.24 + i * 0.11, 0.15);
+    sleepGroup.add(zOrb);
+  }
+  root.add(sleepGroup);
+
+  enableShadows(root, true, true);
+  root.userData = {
+    segments,
+    headGroup,
+    sleepGroup
+  };
+  return root;
+}
+
+export function createMiteModel(): THREE.Group {
+  const root = new THREE.Group();
+  const bodyGroup = new THREE.Group();
+  bodyGroup.position.set(0, 0.03, 0);
+  root.add(bodyGroup);
+
+  const shell = new THREE.Mesh(
+    new THREE.SphereGeometry(0.24, 18, 14),
+    SHARED_MATERIALS.miteBody
+  );
+  shell.scale.set(1.06, 0.78, 1.16);
+  bodyGroup.add(shell);
+
+  // Warm amber spots on back
+  const spotSpecs: Array<[number, number, number, number]> = [
+    [0, 0.17, -0.05, 0.055],
+    [-0.1, 0.14, 0.05, 0.042],
+    [0.1, 0.14, 0.05, 0.042]
+  ];
+  for (const [sx, sy, sz, sr] of spotSpecs) {
+    const spot = new THREE.Mesh(
+      new THREE.SphereGeometry(sr, 10, 8),
+      SHARED_MATERIALS.miteSpot
+    );
+    spot.scale.set(1, 0.45, 1);
+    spot.position.set(sx, sy, sz);
+    bodyGroup.add(spot);
+  }
+
+  // Cute round front eyes + antennae
+  const antennae: THREE.Object3D[] = [];
+  for (const side of [-1, 1]) {
+    const eye = new THREE.Mesh(
+      new THREE.SphereGeometry(0.042, 10, 8),
+      SHARED_MATERIALS.eyeDark
+    );
+    eye.position.set(side * 0.082, 0.045, 0.235);
+    bodyGroup.add(eye);
+
+    const shine = new THREE.Mesh(
+      new THREE.SphereGeometry(0.015, 8, 6),
+      SHARED_MATERIALS.eyeShine
+    );
+    shine.position.set(side * 0.082 + 0.01, 0.06, 0.27);
+    bodyGroup.add(shine);
+
+    const antenna = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.01, 0.014, 0.14, 6),
+      SHARED_MATERIALS.miteLeg
+    );
+    antenna.position.set(side * 0.055, 0.125, 0.22);
+    antenna.rotation.x = 0.55;
+    antenna.rotation.z = -side * 0.35;
+    bodyGroup.add(antenna);
+    antennae.push(antenna);
+  }
+
+  // 6 lively little scurry legs (3 left, 3 right)
+  const leftLegs: THREE.Group[] = [];
+  const rightLegs: THREE.Group[] = [];
+  const legZOffsets = [0.11, 0, -0.11];
+  for (let i = 0; i < 3; i++) {
+    for (const side of [-1, 1]) {
+      const pivot = new THREE.Group();
+      pivot.position.set(side * 0.2, -0.02, legZOffsets[i]);
+
+      const leg = new THREE.Mesh(
+        new THREE.CapsuleGeometry(0.024, 0.1, 4, 8),
+        SHARED_MATERIALS.miteLeg
+      );
+      leg.position.set(side * 0.065, -0.05, 0);
+      leg.rotation.z = side * 0.72;
+      pivot.add(leg);
+
+      bodyGroup.add(pivot);
+      if (side < 0) leftLegs.push(pivot);
+      else rightLegs.push(pivot);
+    }
+  }
+
+  const sleepGroup = new THREE.Group();
+  sleepGroup.visible = false;
+  for (let i = 0; i < 3; i++) {
+    const zOrb = new THREE.Mesh(
+      new THREE.SphereGeometry(0.042 + i * 0.012, 8, 8),
+      SHARED_MATERIALS.sleepZ
+    );
+    zOrb.position.set(0.06 + i * 0.05, 0.26 + i * 0.11, 0.12);
+    sleepGroup.add(zOrb);
+  }
+  root.add(sleepGroup);
+
+  enableShadows(root, true, true);
+  root.userData = {
+    bodyGroup,
+    leftLegs,
+    rightLegs,
+    antennae,
+    sleepGroup
+  };
+  return root;
+}
+
+export function createFlowerBudModel(variant = 0): THREE.Group {
+  const root = new THREE.Group();
+  const petalMat =
+    SHARED_MATERIALS.petalVariants[Math.abs(variant) % SHARED_MATERIALS.petalVariants.length];
+
+  const stem = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.032, 0.04, 0.26, 8),
+    SHARED_MATERIALS.stemGreen
+  );
+  stem.position.set(0, -0.18, 0);
+  root.add(stem);
+
+  const leaves: THREE.Object3D[] = [];
+  for (const side of [-1, 1]) {
+    const leaf = new THREE.Mesh(
+      new THREE.SphereGeometry(0.095, 10, 8),
+      SHARED_MATERIALS.stemGreen
+    );
+    leaf.scale.set(1.15, 0.42, 0.35);
+    leaf.position.set(side * 0.11, -0.22, 0);
+    leaf.rotation.z = side * 0.45;
+    root.add(leaf);
+    leaves.push(leaf);
+  }
+
+  const budHead = new THREE.Group();
+  budHead.position.set(0, -0.02, 0.02);
+  root.add(budHead);
+
+  const calyx = new THREE.Mesh(
+    new THREE.SphereGeometry(0.11, 12, 10),
+    SHARED_MATERIALS.budCalyx
+  );
+  calyx.scale.set(1.05, 0.78, 1.05);
+  calyx.position.y = -0.02;
+  budHead.add(calyx);
+
+  // 4 curled closed petals hugging the bud tip
+  const petalGeo = new THREE.SphereGeometry(0.085, 10, 8);
+  for (let i = 0; i < 4; i++) {
+    const angle = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    const petal = new THREE.Mesh(petalGeo, petalMat);
+    petal.scale.set(0.75, 1.45, 0.75);
+    petal.position.set(Math.cos(angle) * 0.048, 0.06, Math.sin(angle) * 0.048);
+    petal.rotation.z = -Math.cos(angle) * 0.28;
+    petal.rotation.x = Math.sin(angle) * 0.28;
+    budHead.add(petal);
+  }
+
+  enableShadows(root, true, true);
+  root.userData = {
+    budHead,
+    leaves
   };
   return root;
 }

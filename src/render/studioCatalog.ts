@@ -313,6 +313,48 @@ const STANDING_OBJECT_SPECS: StudioItemSpec[] = [
     defaultYaw: 0.55,
     defaultPitch: 0.34,
     pedestalRadius: 1.45
+  },
+  {
+    id: 'grub',
+    category: 'objects',
+    emoji: '🐛',
+    label: 'Waben-Made',
+    description: 'Gemütliche creme-grüne Made, die sich langsam durch weiches Wachs futtert und Blüten vernascht.',
+    defaultRadius: 2.5,
+    minRadius: 1.2,
+    maxRadius: 4.8,
+    targetY: 0.45,
+    defaultYaw: 0.55,
+    defaultPitch: 0.34,
+    pedestalRadius: 1.15
+  },
+  {
+    id: 'mite',
+    category: 'objects',
+    emoji: '🕷️',
+    label: 'Honig-Milbe',
+    description: 'Flinke kleine Bienen-Milbe mit bernsteinfarbenen Punkten, die durch offene Gänge flitzt.',
+    defaultRadius: 2.5,
+    minRadius: 1.2,
+    maxRadius: 4.8,
+    targetY: 0.48,
+    defaultYaw: 0.52,
+    defaultPitch: 0.36,
+    pedestalRadius: 1.15
+  },
+  {
+    id: 'flower_bud',
+    category: 'objects',
+    emoji: '🌱',
+    label: 'Nachwachsende Blüte',
+    description: 'Frische Blütenknospe an einer vernaschten Stelle – wächst nach kurzer Zeit wieder zu einer vollen Blüte nach!',
+    defaultRadius: 2.5,
+    minRadius: 1.2,
+    maxRadius: 4.8,
+    targetY: 0.52,
+    defaultYaw: 0.38,
+    defaultPitch: 0.32,
+    pedestalRadius: 1.15
   }
 ];
 
@@ -691,6 +733,15 @@ export function buildStudioStageItem(
     case 'wax':
       obj = assets.createTileObject('wax', 0);
       break;
+    case 'grub':
+      obj = assets.createPest('grub');
+      break;
+    case 'mite':
+      obj = assets.createPest('mite');
+      break;
+    case 'flower_bud':
+      obj = assets.createFlowerBud(1);
+      break;
     default:
       obj = assets.createTileObject('honeypot');
       break;
@@ -972,6 +1023,66 @@ export function buildStudioStageItem(
             }
           }
         }
+        return;
+      }
+
+      if (item.id === 'grub') {
+        const { segments, headGroup } = targetObj.userData as {
+          segments?: THREE.Group[];
+          headGroup?: THREE.Group;
+        };
+        if (segments) {
+          segments.forEach((seg, idx) => {
+            const ph = elapsed * 5.2 + idx * 1.15;
+            seg.position.y = -0.02 + Math.max(0, Math.sin(ph)) * 0.045;
+            const squish = 1 + Math.sin(ph) * 0.1;
+            seg.scale.set(squish, 1 / Math.sqrt(squish), squish);
+          });
+        }
+        if (headGroup) {
+          headGroup.position.y = 0.02 + Math.sin(elapsed * 5.2) * 0.03;
+          headGroup.rotation.z = Math.sin(elapsed * 3.6) * 0.12;
+        }
+        return;
+      }
+
+      if (item.id === 'mite') {
+        const { bodyGroup, leftLegs, rightLegs, antennae } = targetObj.userData as {
+          bodyGroup?: THREE.Group;
+          leftLegs?: THREE.Group[];
+          rightLegs?: THREE.Group[];
+          antennae?: THREE.Object3D[];
+        };
+        if (bodyGroup) {
+          bodyGroup.position.y = 0.03 + Math.abs(Math.sin(elapsed * 8.5)) * 0.035;
+          bodyGroup.rotation.z = Math.sin(elapsed * 7.5) * 0.07;
+        }
+        if (leftLegs && rightLegs) {
+          leftLegs.forEach((leg, i) => {
+            const ph = elapsed * 16 + i * 2.1;
+            leg.rotation.y = Math.sin(ph) * 0.38;
+            leg.rotation.x = Math.cos(ph) * 0.22;
+          });
+          rightLegs.forEach((leg, i) => {
+            const ph = elapsed * 16 + i * 2.1 + Math.PI;
+            leg.rotation.y = Math.sin(ph) * 0.38;
+            leg.rotation.x = Math.cos(ph) * 0.22;
+          });
+        }
+        if (antennae) {
+          antennae.forEach((ant, i) => {
+            ant.rotation.x = 0.55 + Math.sin(elapsed * 6.5 + i * 1.4) * 0.2;
+          });
+        }
+        return;
+      }
+
+      if (item.id === 'flower_bud') {
+        const cycle = (elapsed * 0.32) % 1;
+        const grow = 0.5 + 0.5 * Math.sin(cycle * Math.PI * 2 - Math.PI / 2);
+        const s = THREE.MathUtils.lerp(0.65, 1.42, grow);
+        targetObj.scale.setScalar(s);
+        targetObj.rotation.z = Math.sin(elapsed * 2.2) * 0.08;
       }
     }
   };

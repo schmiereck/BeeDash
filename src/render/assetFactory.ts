@@ -1,15 +1,18 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
-import { TileType } from '../game/types';
+import { PestKind, TileType } from '../game/types';
 import {
   createBeeModel,
+  createFlowerBudModel,
   createFlowerModel,
+  createGrubModel,
   createHoneyBowlModel,
   createHoneyGateModel,
   createHoneyPotModel,
   createHoneySourceModel,
   createLiquidHoneyModel,
+  createMiteModel,
   createPetalGateModel,
   createPortalModel,
   createPressurePlateModel,
@@ -186,6 +189,14 @@ export class AssetFactory {
 
   createPortal(pair: 0 | 1): THREE.Group {
     return createPortalModel(pair);
+  }
+
+  createPest(kind: PestKind): THREE.Group {
+    return kind === 'grub' ? createGrubModel() : createMiteModel();
+  }
+
+  createFlowerBud(variant = 0): THREE.Group {
+    return createFlowerBudModel(variant);
   }
 
   createTileObject(type: TileType, variant = 0): THREE.Group | null {

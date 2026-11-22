@@ -49,7 +49,10 @@ describe('BeeDash 3D-Atelier Katalog & Builder', () => {
       'exit',
       'wall',
       'rounded_wall',
-      'wax'
+      'wax',
+      'grub',
+      'mite',
+      'flower_bud'
     ]) {
       expect(ids.has(objId)).toBe(true);
     }

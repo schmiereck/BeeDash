@@ -259,6 +259,51 @@ export function renderLevelPreview(
     ctx.fill();
   }
 
+  // Draw grubs ('M') and mites ('m')
+  for (const pest of parsed.pests) {
+    const cx = originX + (pest.x + 0.5) * tileSize;
+    const cy = originY + (pest.y + 0.5) * tileSize;
+    if (pest.kind === 'grub') {
+      const r = tileSize * 0.16;
+      ctx.fillStyle = '#9cd66d';
+      ctx.beginPath();
+      ctx.arc(cx - r * 0.9, cy + r * 0.25, r * 0.72, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#f6f0c2';
+      ctx.beginPath();
+      ctx.arc(cx - r * 0.1, cy + r * 0.1, r * 0.85, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffe49e';
+      ctx.beginPath();
+      ctx.arc(cx + r * 0.75, cy, r * 0.82, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#1e130c';
+      ctx.beginPath();
+      ctx.arc(cx + r * 0.98, cy - r * 0.18, r * 0.2, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      const r = tileSize * 0.23;
+      ctx.strokeStyle = '#6e272e';
+      ctx.lineWidth = Math.max(1, tileSize * 0.07);
+      for (const side of [-1, 1]) {
+        for (const dy of [-0.55, 0, 0.55]) {
+          ctx.beginPath();
+          ctx.moveTo(cx, cy + dy * r);
+          ctx.lineTo(cx + side * r * 1.45, cy + dy * r * 1.2);
+          ctx.stroke();
+        }
+      }
+      ctx.fillStyle = '#d94854';
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffb74d';
+      ctx.beginPath();
+      ctx.arc(cx, cy - r * 0.2, r * 0.26, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
   // Draw player bee at start
   const beeCx = originX + (playerStart.x + 0.5) * tileSize;
   const beeCy = originY + (playerStart.y + 0.5) * tileSize;

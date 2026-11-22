@@ -47,6 +47,9 @@ export class BoardRenderer {
   private cellMeshes = new Map<number, THREE.Group>();
   private plateMeshes = new Map<string, THREE.Group>();
   private portalMeshes = new Map<string, THREE.Group>();
+  private pestMeshes = new Map<number, THREE.Group>();
+  private pestYaw = new Map<number, number>();
+  private budMeshes = new Map<number, THREE.Group>();
   private honeyTransitions = new Map<number, HoneyTransition>();
   private honeyWobbleTime = new Map<number, number>();
   private honeyBridgeBlend = new Map<number, HoneyBridgeState>();
@@ -234,6 +237,47 @@ export class BoardRenderer {
       }
     }
 
+    // Sync grubs ('M') & mites ('m')
+    const activePestIds = new Set<number>();
+    for (const pest of state.pests) {
+      activePestIds.add(pest.id);
+      if (!this.pestMeshes.has(pest.id)) {
+        const pestObj = this.assets.createPest(pest.kind);
+        pestObj.position.set(pest.prevX, -pest.prevY - 0.14, 0.08);
+        pestObj.rotation.y = FACING_YAW[pest.facing];
+        this.pestYaw.set(pest.id, FACING_YAW[pest.facing]);
+        this.pestMeshes.set(pest.id, pestObj);
+        this.group.add(pestObj);
+      }
+    }
+    for (const [id, pestObj] of this.pestMeshes.entries()) {
+      if (!activePestIds.has(id)) {
+        this.group.remove(pestObj);
+        this.disposeProceduralObj(pestObj);
+        this.pestMeshes.delete(id);
+        this.pestYaw.delete(id);
+      }
+    }
+
+    // Sync regrowing flower buds
+    const activeBudIds = new Set<number>();
+    for (const bud of state.regrowingFlowers) {
+      activeBudIds.add(bud.id);
+      if (!this.budMeshes.has(bud.id)) {
+        const budObj = this.assets.createFlowerBud(bud.variant);
+        budObj.position.set(bud.x, -bud.y - 0.08, 0.02);
+        this.budMeshes.set(bud.id, budObj);
+        this.group.add(budObj);
+      }
+    }
+    for (const [id, budObj] of this.budMeshes.entries()) {
+      if (!activeBudIds.has(id)) {
+        this.group.remove(budObj);
+        this.disposeProceduralObj(budObj);
+        this.budMeshes.delete(id);
+      }
+    }
+
     // Emit particles for tick events
     for (const ev of events) {
       switch (ev.type) {
@@ -303,6 +347,18 @@ export class BoardRenderer {
           break;
         case 'exit_open':
           this.particles.emitExitOpen(ev.x, ev.y);
+          break;
+        case 'pest_dig':
+          this.particles.emitPestNibble(ev.x, ev.y);
+          break;
+        case 'pest_eat_flower':
+          this.particles.emitPestEatFlower(ev.x, ev.y);
+          break;
+        case 'flower_regrow':
+          this.particles.emitFlowerRegrow(ev.x, ev.y);
+          break;
+        case 'pest_sleep':
+          this.particles.emitPestSleep(ev.x, ev.y);
           break;
         case 'win':
           this.particles.emitWin(ev.x, ev.y);
@@ -871,6 +927,115 @@ export class BoardRenderer {
       }
     }
 
+    // Interpolate and animate grubs & mites
+    for (const pest of state.pests) {
+      const pestObj = this.pestMeshes.get(pest.id);
+      if (!pestObj) continue;
+
+      const moved = pest.prevX !== pest.x || pest.prevY !== pest.y;
+      const px = THREE.MathUtils.lerp(pest.prevX, pest.x, t);
+      const py = THREE.MathUtils.lerp(-pest.prevY, -pest.y, t);
+      const isSleeping = pest.sleepTicks > 0;
+
+      const targetYaw = FACING_YAW[pest.facing];
+      let curYaw = this.pestYaw.get(pest.id) ?? targetYaw;
+      let dYaw = targetYaw - curYaw;
+      while (dYaw > Math.PI) dYaw -= Math.PI * 2;
+      while (dYaw < -Math.PI) dYaw += Math.PI * 2;
+      curYaw += dYaw * Math.min(1, dt * 14);
+      this.pestYaw.set(pest.id, curYaw);
+
+      pestObj.position.set(px, py - 0.14, 0.08);
+      pestObj.rotation.y = curYaw;
+
+      const {
+        segments,
+        headGroup,
+        bodyGroup,
+        leftLegs,
+        rightLegs,
+        antennae,
+        sleepGroup
+      } = pestObj.userData as {
+        segments?: THREE.Group[];
+        headGroup?: THREE.Group;
+        bodyGroup?: THREE.Group;
+        leftLegs?: THREE.Group[];
+        rightLegs?: THREE.Group[];
+        antennae?: THREE.Object3D[];
+        sleepGroup?: THREE.Group;
+      };
+
+      if (sleepGroup) {
+        sleepGroup.visible = isSleeping;
+        if (isSleeping) {
+          sleepGroup.children.forEach((orb, idx) => {
+            orb.position.y = 0.24 + idx * 0.11 + Math.sin(this.elapsed * 3.4 + idx * 0.9) * 0.04;
+            orb.position.x = 0.06 + idx * 0.05 + Math.cos(this.elapsed * 2.1 + idx) * 0.025;
+          });
+        }
+      }
+
+      if (pest.kind === 'grub') {
+        const crawlSpeed = isSleeping ? 2.2 : moved ? 11 : 4.2;
+        const amp = isSleeping ? 0.015 : moved ? 0.055 : 0.028;
+        if (segments) {
+          segments.forEach((seg, idx) => {
+            const ph = this.elapsed * crawlSpeed + idx * 1.15 + pest.id;
+            seg.position.y = -0.02 + Math.max(0, Math.sin(ph)) * amp;
+            const squish = 1 + Math.sin(ph) * (isSleeping ? 0.04 : 0.11);
+            seg.scale.set(squish, 1 / Math.sqrt(squish), squish);
+          });
+        }
+        if (headGroup) {
+          headGroup.position.y =
+            0.02 + Math.sin(this.elapsed * crawlSpeed + pest.id) * (amp * 0.7);
+          headGroup.rotation.z = isSleeping
+            ? Math.sin(this.elapsed * 2.5 + pest.id) * 0.08
+            : Math.sin(this.elapsed * 5 + pest.id) * 0.12;
+        }
+      } else {
+        const legSpeed = isSleeping ? 0 : moved ? 26 : 10;
+        if (bodyGroup) {
+          bodyGroup.position.y =
+            0.03 + Math.abs(Math.sin(this.elapsed * (isSleeping ? 2.4 : 8) + pest.id)) * (isSleeping ? 0.015 : 0.04);
+          bodyGroup.rotation.z = isSleeping ? 0.12 : Math.sin(this.elapsed * 9 + pest.id) * 0.08;
+        }
+        if (leftLegs && rightLegs) {
+          leftLegs.forEach((leg, i) => {
+            const ph = this.elapsed * legSpeed + i * 2.1;
+            leg.rotation.y = isSleeping ? 0 : Math.sin(ph) * 0.42;
+            leg.rotation.x = isSleeping ? 0.18 : Math.cos(ph) * 0.25;
+          });
+          rightLegs.forEach((leg, i) => {
+            const ph = this.elapsed * legSpeed + i * 2.1 + Math.PI;
+            leg.rotation.y = isSleeping ? 0 : Math.sin(ph) * 0.42;
+            leg.rotation.x = isSleeping ? 0.18 : Math.cos(ph) * 0.25;
+          });
+        }
+        if (antennae) {
+          antennae.forEach((ant, i) => {
+            ant.rotation.x = 0.55 + Math.sin(this.elapsed * 7 + i * 1.4) * (isSleeping ? 0.05 : 0.22);
+          });
+        }
+      }
+    }
+
+    // Animate regrowing flower buds scaling gradually from seedling to full bud
+    for (const bud of state.regrowingFlowers) {
+      const budObj = this.budMeshes.get(bud.id);
+      if (!budObj) continue;
+      const progress = THREE.MathUtils.clamp(
+        1 - bud.ticksRemaining / Math.max(1, bud.totalTicks),
+        0,
+        1
+      );
+      const pulse = 1 + Math.sin(this.elapsed * 4.5 + bud.id) * (progress > 0.72 ? 0.06 : 0.025);
+      const s = THREE.MathUtils.lerp(0.38, 1.04, progress) * pulse;
+      budObj.scale.setScalar(s);
+      budObj.rotation.z = Math.sin(this.elapsed * 2.6 + bud.id) * 0.09;
+    }
+
     this.particles.update(dt);
   }
 
@@ -1298,6 +1463,17 @@ export class BoardRenderer {
       this.disposeProceduralObj(portalObj);
     }
     this.portalMeshes.clear();
+    for (const pestObj of this.pestMeshes.values()) {
+      this.group.remove(pestObj);
+      this.disposeProceduralObj(pestObj);
+    }
+    this.pestMeshes.clear();
+    this.pestYaw.clear();
+    for (const budObj of this.budMeshes.values()) {
+      this.group.remove(budObj);
+      this.disposeProceduralObj(budObj);
+    }
+    this.budMeshes.clear();
     this.honeyTransitions.clear();
     this.honeyWobbleTime.clear();
     this.honeyBridgeBlend.clear();

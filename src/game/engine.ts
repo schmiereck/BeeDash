@@ -5,7 +5,15 @@ import {
   updatePressurePlates
 } from './honeyPhysics';
 import { parseLevelAscii } from './levels/parser';
-import { Direction, GameEvent, GameState, LevelDefinition } from './types';
+import {
+  BEE_SHOO_TICKS,
+  GRUB_EMPTY_COOLDOWN,
+  MITE_EMPTY_COOLDOWN,
+  hasPestAt,
+  stepPests,
+  stepRegrowingFlowers
+} from './pestPhysics';
+import { Direction, GameEvent, GameState, LevelDefinition, PestEntity } from './types';
 
 const DIR_DELTA: Record<Direction, { dx: number; dy: number }> = {
   up: { dx: 0, dy: -1 },
@@ -17,6 +25,18 @@ const DIR_DELTA: Record<Direction, { dx: number; dy: number }> = {
 export function createGameState(level: LevelDefinition): GameState {
   const parsed = parseLevelAscii(level);
   const requiredFlowers = level.requiredFlowers ?? parsed.totalFlowers;
+  let nextEntityId = parsed.nextEntityId;
+  const pests: PestEntity[] = parsed.pests.map((p) => ({
+    id: nextEntityId++,
+    kind: p.kind,
+    x: p.x,
+    y: p.y,
+    prevX: p.x,
+    prevY: p.y,
+    facing: 'right',
+    moveCooldown: p.kind === 'grub' ? GRUB_EMPTY_COOLDOWN : MITE_EMPTY_COOLDOWN,
+    sleepTicks: 0
+  }));
 
   return {
     levelId: level.id,
@@ -55,9 +75,11 @@ export function createGameState(level: LevelDefinition): GameState {
     totalPlates: parsed.pressurePlates.length,
     petalGatesOpen: parsed.pressurePlates.length === 0,
     portals: parsed.portals.map((p) => ({ ...p })),
+    pests,
+    regrowingFlowers: [],
     exitOpen: requiredFlowers === 0 && parsed.totalBees === 0,
     moves: 0,
-    nextEntityId: parsed.nextEntityId,
+    nextEntityId,
     honeySourceCount: parsed.honeySourceCount,
     initialHoneyCount: parsed.initialHoneyCount,
     sourceDripDelay: {},
@@ -90,6 +112,8 @@ export function cloneGameState(state: GameState): GameState {
     pressurePlates: state.pressurePlates.map((p) => ({ ...p })),
     petalGates: state.petalGates.map((g) => ({ ...g })),
     portals: state.portals.map((p) => ({ ...p })),
+    pests: state.pests.map((p) => ({ ...p })),
+    regrowingFlowers: state.regrowingFlowers.map((f) => ({ ...f })),
     sourceDripDelay: { ...state.sourceDripDelay },
     lastEvents: state.lastEvents.map((e) => ({ ...e }))
   };
@@ -117,7 +141,12 @@ export function willDirectionChangeState(state: GameState, dir: Direction): bool
     case 'honeypot': {
       if ((dir === 'left' || dir === 'right') && target.fallState === 'resting') {
         const bx = tx + dx;
-        if (bx > 0 && bx < state.width - 1 && state.grid[ty][bx].type === 'empty') {
+        if (
+          bx > 0 &&
+          bx < state.width - 1 &&
+          state.grid[ty][bx].type === 'empty' &&
+          !hasPestAt(state, bx, ty)
+        ) {
           return true;
         }
       }
@@ -206,6 +235,10 @@ export function stepGame(state: GameState, dir: Direction | null): GameEvent[] {
   state.player.prevX = state.player.x;
   state.player.prevY = state.player.y;
   state.player.movedThisTick = false;
+  for (const pest of state.pests) {
+    pest.prevX = pest.x;
+    pest.prevY = pest.y;
+  }
   for (let y = 0; y < state.height; y++) {
     for (let x = 0; x < state.width; x++) {
       const cell = state.grid[y][x];
@@ -276,7 +309,12 @@ export function stepGame(state: GameState, dir: Direction | null): GameEvent[] {
       } else if (target.type === 'honeypot') {
         if ((moveDir === 'left' || moveDir === 'right') && target.fallState === 'resting') {
           const bx = tx + dx;
-          if (bx > 0 && bx < state.width - 1 && state.grid[ty][bx].type === 'empty') {
+          if (
+            bx > 0 &&
+            bx < state.width - 1 &&
+            state.grid[ty][bx].type === 'empty' &&
+            !hasPestAt(state, bx, ty)
+          ) {
             target.prevX = tx;
             target.prevY = ty;
             target.x = bx;
@@ -313,6 +351,14 @@ export function stepGame(state: GameState, dir: Direction | null): GameEvent[] {
   }
 
   tryPortalWarp(state, events);
+  if (state.player.movedThisTick && state.status === 'playing') {
+    for (const pest of state.pests) {
+      if (pest.x === state.player.x && pest.y === state.player.y && pest.sleepTicks === 0) {
+        pest.sleepTicks = BEE_SHOO_TICKS;
+        events.push({ type: 'pest_sleep', x: pest.x, y: pest.y, kind: pest.kind });
+      }
+    }
+  }
   updatePressurePlates(state, events);
   rescueAdjacentFreeBees(state, events);
   updateExitOpen(state, events);
@@ -320,6 +366,8 @@ export function stepGame(state: GameState, dir: Direction | null): GameEvent[] {
   if (state.status === 'playing') {
     stepPhysics(state, events, pushedThisTick);
     if (state.status === 'playing') {
+      const bloomed = stepRegrowingFlowers(state, events);
+      stepPests(state, events, bloomed);
       updatePressurePlates(state, events);
       rescueAdjacentFreeBees(state, events);
       updateExitOpen(state, events);

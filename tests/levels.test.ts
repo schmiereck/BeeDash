@@ -25,9 +25,9 @@ function expand(moves: Array<[Direction | null, number]>): Array<Direction | nul
 }
 
 describe('Campaign Levels Validation', () => {
-  it('contains 36 sequentially numbered levels with unique IDs and per-world coordinates', () => {
-    expect(CAMPAIGN_LEVELS).toHaveLength(36);
-    expect(CAMPAIGN_WORLDS).toHaveLength(3);
+  it('contains 48 sequentially numbered levels with unique IDs and per-world coordinates', () => {
+    expect(CAMPAIGN_LEVELS).toHaveLength(48);
+    expect(CAMPAIGN_WORLDS).toHaveLength(4);
     const ids = new Set<string>();
     const coords = new Set<string>();
 
@@ -43,8 +43,10 @@ describe('Campaign Levels Validation', () => {
     });
   });
 
-  it('validates structure, idle safety, and goal reachability for all 36 campaign levels', () => {
-    const staticLevels = new Set([1, 2, 3, 4, 9, 11, 13, 15, 16, 19, 21, 22, 25, 26, 27, 30]);
+  it('validates structure, idle safety, and goal reachability for all 48 campaign levels', () => {
+    const staticLevels = new Set([
+      1, 2, 3, 4, 9, 11, 13, 15, 16, 19, 21, 22, 25, 26, 27, 30, 37, 38, 39, 42
+    ]);
 
     for (const level of CAMPAIGN_LEVELS) {
       const result = validateLevel(level);
@@ -1644,6 +1646,754 @@ describe('Campaign Levels Validation', () => {
     expect(state.petalGatesOpen).toBe(true);
     expect(state.gatesOpen).toBe(true);
     expect(state.collectedFlowers).toBe(7);
+    expect(state.rescuedBees).toBe(3);
+  });
+
+  it('solves Wabe 37 (static lazy hive intro with hungry grub)', () => {
+    const level = CAMPAIGN_LEVELS.find((l) => l.id === 'wabe-37')!;
+    expect(level.world).toBe(4);
+
+    const state = createGameState(level);
+    runMoves(
+      state,
+      expand([
+        ['down', 3], // (1,4)
+        ['right', 5], // F(2,4) and across to (6,4)
+        ['down', 2], // F(6,6)
+        ['up', 5], // (6,1)
+        ['left', 2], // F(4,1)
+        ['right', 6], // (10,1)
+        ['down', 3], // F(10,4)
+        ['up', 3], // (10,1)
+        ['right', 1] // E(11,1)
+      ])
+    );
+
+    expect(state.status).toBe('won');
+    expect(state.collectedFlowers).toBe(4);
+  });
+
+function collectIfRegrowing(
+  state: ReturnType<typeof createGameState>,
+  fx: number,
+  fy: number,
+  stepDir: Direction,
+  backDir: Direction,
+  maxWait = 45
+): void {
+  for (let i = 0; i < maxWait && state.grid[fy][fx].type !== 'flower'; i++) {
+    stepGame(state, null);
+  }
+  if (state.grid[fy][fx].type === 'flower') {
+    stepGame(state, stepDir);
+    stepGame(state, backDir);
+  }
+}
+
+  it('solves Wabe 38 (two grubs, trapped bee, and regrowing flowers)', () => {
+    const level = CAMPAIGN_LEVELS.find((l) => l.id === 'wabe-38')!;
+    expect(level.world).toBe(4);
+
+    const state = createGameState(level);
+    runMoves(
+      state,
+      expand([
+        ['right', 1],
+        ['down', 5], // F(2,2) -> (2,6) F
+        ['right', 3], // (5,6) frees B(6,6)
+        ['down', 1],
+        ['right', 5], // (10,7)
+        ['up', 4], // F(10,6) -> (10,3)
+        ['left', 1], // F(9,3)
+        ['right', 1], // (10,3) avoiding #(9,5)
+        ['down', 4], // (10,7)
+        ['left', 4], // (6,7)
+        ['up', 3], // (6,4)
+        ['left', 1] // (5,4) so M(6,2) has room to step into (6,3) and release the bud!
+      ])
+    );
+
+    for (let i = 0; i < 45 && state.grid[2][6].type !== 'flower' && state.collectedFlowers < 5; i++) {
+      stepGame(state, null);
+    }
+    runMoves(
+      state,
+      expand([
+        ['right', 1], // (6,4)
+        ['up', 2], // F(6,2)
+        ['down', 5], // (6,7)
+        ['right', 4], // (10,7)
+        ['up', 6], // (10,1)
+        ['right', 1] // E(11,1)
+      ])
+    );
+
+    const info = `pos=${state.player.x},${state.player.y} fl=${state.collectedFlowers}/${state.requiredFlowers} bee=${state.rescuedBees}/${state.totalBees}`;
+    expect(state.status, info).toBe('won');
+    expect(state.collectedFlowers).toBe(5);
+    expect(state.rescuedBees).toBe(1);
+  });
+
+  it('solves Wabe 39 (outpacing the fast mite in open corridors)', () => {
+    const level = CAMPAIGN_LEVELS.find((l) => l.id === 'wabe-39')!;
+    expect(level.world).toBe(4);
+
+    const state = createGameState(level);
+    runMoves(
+      state,
+      expand([
+        ['down', 6], // (1,7) F before the mite reaches left end
+        ['up', 4], // (1,3)
+        ['right', 7], // collects F(2,3) and F(8,3)
+        ['left', 1], // (7,3)
+        ['down', 2], // (7,5)
+        ['right', 4], // (11,5)
+        ['down', 1] // (11,6) above F(11,7)
+      ])
+    );
+    if (state.collectedFlowers < 4) {
+      collectIfRegrowing(state, 11, 7, 'down', 'up');
+    }
+    runMoves(
+      state,
+      expand([
+        ['up', 1], // (11,5)
+        ['left', 2], // (9,5)
+        ['up', 4], // (9,1)
+        ['left', 5], // F(4,1)
+        ['right', 7] // E(11,1)
+      ])
+    );
+
+    const info = `pos=${state.player.x},${state.player.y} fl=${state.collectedFlowers}/${state.requiredFlowers}`;
+    expect(state.status, info).toBe('won');
+    expect(state.collectedFlowers).toBe(5);
+  });
+
+  it('solves Wabe 40 (dropping honeypot on hungry grub + rescuing bee)', () => {
+    const level = CAMPAIGN_LEVELS.find((l) => l.id === 'wabe-40')!;
+    expect(level.world).toBe(4);
+
+    const state = createGameState(level);
+    runMoves(
+      state,
+      expand([
+        ['right', 1],
+        ['down', 1], // F(2,2)
+        ['right', 4], // (6,2)
+        ['down', 1], // (6,3)
+        ['left', 1], // step aside to (5,3) so O(6,1) falls into (6,4) and sleeps/blocks M!
+        [null, 5],
+        ['left', 3], // (2,3)
+        ['down', 5], // F(2,7) -> (2,8)
+        ['right', 8], // F(6,8) -> (10,8)
+        ['up', 4], // (10,4)
+        ['left', 3], // F(7,4)
+        ['right', 3], // (10,4)
+        ['down', 4], // (10,8)
+        ['right', 5], // F(15,8)
+        ['up', 2], // (15,6) frees B(14,6)
+        ['up', 4], // (15,2)
+        ['left', 2], // F(13,2)
+        ['up', 1], // (13,1)
+        ['right', 2] // E(15,1)
+      ])
+    );
+
+    expect(state.status).toBe('won');
+    expect(state.dizzyRemainingMs).toBe(0);
+    expect(state.collectedFlowers).toBe(6);
+    expect(state.rescuedBees).toBe(1);
+  });
+
+  it('solves Wabe 41 (rolling pot + grub + mite)', () => {
+    const level = CAMPAIGN_LEVELS.find((l) => l.id === 'wabe-41')!;
+    expect(level.world).toBe(4);
+
+    const state = createGameState(level);
+    runMoves(
+      state,
+      expand([
+        ['right', 1],
+        ['down', 1], // F(2,2)
+        ['down', 3], // F(2,5)
+        ['down', 4], // (2,9)
+        ['right', 6], // (8,9)
+        ['up', 1], // F(8,8)
+        ['down', 1],
+        ['right', 6], // (14,9)
+        ['up', 1], // F(14,8)
+        ['down', 1],
+        ['right', 1], // (15,9)
+        ['up', 4], // (15,5) frees B(14,5)
+        ['up', 3], // (15,2)
+        ['left', 2], // F(13,2)
+        ['down', 1], // (13,3)
+        ['left', 1], // (12,3)
+        ['down', 6], // (12,9)
+        ['left', 5], // (7,9)
+        ['up', 2] // (7,7) below F(7,6)
+      ])
+    );
+
+    for (let i = 0; i < 30 && state.grid[6][7].type !== 'flower'; i++) {
+      stepGame(state, null);
+    }
+    runMoves(
+      state,
+      expand([
+        ['up', 1], // F(7,6)
+        ['down', 1],
+        ['down', 2], // (7,9)
+        ['right', 8], // (15,9)
+        ['up', 8] // E(15,1)
+      ])
+    );
+
+    expect(state.status).toBe('won');
+    expect(state.dizzyRemainingMs).toBe(0);
+    expect(state.collectedFlowers).toBe(6);
+    expect(state.rescuedBees).toBe(1);
+  });
+
+  it('solves Wabe 42 (pressure plate & petal gate with grub and mite)', () => {
+    const level = CAMPAIGN_LEVELS.find((l) => l.id === 'wabe-42')!;
+    expect(level.world).toBe(4);
+
+    const state = createGameState(level);
+    runMoves(
+      state,
+      expand([
+        ['down', 1],
+        ['right', 1], // F(2,2)
+        ['down', 3], // F(2,5) before M(3,4)
+        ['up', 4], // (2,1)
+        ['right', 3], // pushes O(4,1) -> D(6,1), player at (5,1), T(7,3) opens!
+        ['left', 2], // (3,1)
+        ['down', 2], // (3,3)
+        ['right', 6], // crosses T(7,3) -> (9,3)
+        ['up', 1], // F(9,2)
+        ['down', 1],
+        ['right', 2], // (11,3)
+        ['down', 2], // (11,5)
+        ['left', 1], // (10,5) frees B(9,5)
+        ['down', 2] // (10,7) right of F(9,7)
+      ])
+    );
+
+    if (state.collectedFlowers < 4) {
+      collectIfRegrowing(state, 9, 7, 'left', 'right');
+    }
+    runMoves(
+      state,
+      expand([
+        ['right', 1], // (11,7)
+        ['up', 6] // E(11,1)
+      ])
+    );
+
+    const info = `pos=${state.player.x},${state.player.y} fl=${state.collectedFlowers}/${state.requiredFlowers} bee=${state.rescuedBees}/${state.totalBees}`;
+    expect(state.status, info).toBe('won');
+    expect(state.petalGatesOpen).toBe(true);
+    expect(state.collectedFlowers).toBe(4);
+    expect(state.rescuedBees).toBe(1);
+  });
+
+  it('solves Wabe 43 (honey source/bowl/gate with two grubs and regrowing flower)', () => {
+    const level = CAMPAIGN_LEVELS.find((l) => l.id === 'wabe-43')!;
+    expect(level.world).toBe(4);
+
+    const state = createGameState(level);
+    runMoves(
+      state,
+      expand([
+        ['right', 1],
+        ['down', 1], // F(2,2)
+        ['down', 2],
+        ['right', 3],
+        ['down', 1], // F(5,5)
+        ['left', 4],
+        ['down', 3], // (1,8) frees B(2,8)
+        ['up', 1], // (1,7)
+        ['right', 9], // (10,7)
+        ['up', 3], // (10,4)
+        ['left', 1], // (9,4)
+        ['up', 1], // (9,3) opens honey path beside ~~(8,2)
+        ['up', 1], // (9,2) -> triggers spill
+        ['right', 1], // (10,2) step aside!
+        ['down', 5] // (10,7)
+      ])
+    );
+
+    for (let i = 0; i < 20 && !state.gatesOpen; i++) {
+      stepGame(state, null);
+    }
+    expect(state.gatesOpen).toBe(true);
+
+    runMoves(
+      state,
+      expand([
+        ['down', 1], // (10,8)
+        ['right', 5], // F(15,8)
+        ['left', 3], // (12,8)
+        ['up', 3], // crosses G(12,6) -> (12,5)
+        ['right', 3], // (15,5)
+        ['up', 1], // (15,4) frees B(14,4)
+        ['left', 2],
+        ['up', 2], // F(13,2)
+        ['down', 3], // (13,5)
+        ['left', 1],
+        ['down', 3], // (12,8)
+        ['left', 3] // (9,8) above F(9,9)
+      ])
+    );
+
+    for (let i = 0; i < 30 && state.grid[9][9].type !== 'flower'; i++) {
+      stepGame(state, null);
+    }
+    runMoves(
+      state,
+      expand([
+        ['down', 1], // F(9,9)
+        ['up', 1], // (9,8)
+        ['right', 3], // (12,8)
+        ['up', 6], // (12,2)
+        ['right', 5], // (17,2)
+        ['up', 1] // E(17,1)
+      ])
+    );
+
+    expect(state.status).toBe('won');
+    expect(state.gatesOpen).toBe(true);
+    expect(state.collectedFlowers).toBe(5);
+    expect(state.rescuedBees).toBe(2);
+  });
+
+  it('solves Wabe 44 (dual portals + two scurrying mites)', () => {
+    const level = CAMPAIGN_LEVELS.find((l) => l.id === 'wabe-44')!;
+    expect(level.world).toBe(4);
+
+    const state = createGameState(level);
+    runMoves(
+      state,
+      expand([
+        ['down', 1],
+        ['right', 1], // F(2,2)
+        ['right', 1],
+        ['down', 1], // enters 1(3,3) -> warps to 1(15,9)
+        ['up', 1], // (15,8)
+        ['right', 1] // (16,8) left of F(17,8)
+      ])
+    );
+    // Collect F(17,8)
+    collectIfRegrowing(state, 17, 8, 'right', 'left');
+
+    runMoves(
+      state,
+      expand([
+        ['left', 5], // (11,8)
+        ['up', 4], // (11,4)
+        ['left', 2], // (9,4)
+        ['up', 3], // (9,1)
+        ['right', 2] // (11,1) left of F(12,1)
+      ])
+    );
+    collectIfRegrowing(state, 12, 1, 'right', 'left');
+
+    runMoves(
+      state,
+      expand([
+        ['left', 2], // (9,1)
+        ['down', 3], // (9,4)
+        ['right', 1], // (10,4)
+        ['down', 1] // (10,5) right of F(9,5)
+      ])
+    );
+    if (state.collectedFlowers < 4) {
+      collectIfRegrowing(state, 9, 5, 'left', 'right');
+    }
+    runMoves(
+      state,
+      expand([
+        ['right', 1], // (11,5)
+        ['down', 3], // (11,8)
+        ['left', 9], // (2,8) -> passes (3,8), freeing B(3,7)!
+        ['down', 1] // (2,9) -> wait safely off (2,7) if patrol mite sits at (2,6)
+      ])
+    );
+    for (let i = 0; i < 45 && state.grid[6][2].type !== 'flower' && state.collectedFlowers < 5; i++) {
+      stepGame(state, null);
+    }
+    runMoves(state, expand([['up', 2]])); // (2,7)
+    if (state.collectedFlowers < 5) {
+      collectIfRegrowing(state, 2, 6, 'up', 'down');
+    }
+    runMoves(
+      state,
+      expand([
+        ['down', 1], // (2,8)
+        ['right', 3], // (5,8)
+        ['up', 3], // enters 2(5,5) -> warps to 2(14,1)
+        ['down', 2], // (14,3)
+        ['right', 2], // F(16,3)
+        ['right', 1],
+        ['up', 2] // E(17,1)
+      ])
+    );
+
+    const remainingF: string[] = [];
+    for (let y = 0; y < state.height; y++) {
+      for (let x = 0; x < state.width; x++) {
+        if (state.grid[y][x].type === 'flower') remainingF.push(`${x},${y}`);
+      }
+    }
+    const info = `pos=${state.player.x},${state.player.y} fl=${state.collectedFlowers}/${state.requiredFlowers} rem=[${remainingF.join(';')}] regrow=${state.regrowingFlowers.length} bee=${state.rescuedBees}/${state.totalBees}`;
+    expect(state.status, info).toBe('won');
+    expect(state.collectedFlowers).toBe(6);
+    expect(state.rescuedBees).toBe(1);
+  });
+
+  it('solves Wabe 45 (rolling honeypot onto pressure plate + grub and mite)', () => {
+    const level = CAMPAIGN_LEVELS.find((l) => l.id === 'wabe-45')!;
+    expect(level.world).toBe(4);
+
+    const state = createGameState(level);
+    runMoves(
+      state,
+      expand([
+        ['down', 1],
+        ['right', 1], // F(2,2)
+        ['down', 6], // F(2,8)
+        ['up', 1], // (2,7)
+        ['right', 5], // (7,7) before #(8,7)
+        ['down', 1], // (7,8)
+        ['right', 3], // (10,8)
+        ['up', 3], // (10,5)
+        ['left', 2], // (8,5)
+        ['up', 4], // (8,1) clears drop chute (8,5)->(8,2)
+        ['left', 1], // step aside to (7,1) -> O(9,1) rolls left off R(9,2) and drops onto D(8,6)!
+        [null, 10]
+      ])
+    );
+
+    expect(state.petalGatesOpen).toBe(true);
+
+    runMoves(
+      state,
+      expand([
+        ['down', 3], // (7,4)
+        ['right', 9], // crosses T(12,4) -> (16,4)
+        ['up', 2] // (16,2) right of F(15,2)
+      ])
+    );
+    for (let i = 0; i < 40 && state.grid[2][15].type !== 'flower' && state.collectedFlowers < 3; i++) {
+      stepGame(state, null);
+    }
+    if (state.grid[2][15].type === 'flower') {
+      runMoves(state, expand([['left', 1], ['right', 1]]));
+    }
+    runMoves(
+      state,
+      expand([
+        ['down', 7], // (16,9) right of F(15,9)
+        ['up', 1], // (16,8)
+        ['up', 1], // (16,7)
+        ['down', 2] // (16,9)
+      ])
+    );
+    for (let i = 0; i < 40 && state.grid[9][15].type !== 'flower' && state.collectedFlowers < 4; i++) {
+      stepGame(state, null);
+    }
+    if (state.grid[9][15].type === 'flower') {
+      runMoves(state, expand([['left', 1], ['right', 1]]));
+    }
+    runMoves(
+      state,
+      expand([
+        ['up', 1], // (16,8) frees B(15,7)? Wait B is at (15,7)! (15,8) is below B(15,7)!
+        ['left', 1], // (15,8) frees B(15,7)
+        ['right', 1], // (16,8)
+        ['up', 7], // (16,1)
+        ['right', 1] // E(17,1)
+      ])
+    );
+
+    const info = `pos=${state.player.x},${state.player.y} fl=${state.collectedFlowers}/${state.requiredFlowers} bee=${state.rescuedBees}/${state.totalBees}`;
+    expect(state.status, info).toBe('won');
+    expect(state.dizzyRemainingMs).toBe(0);
+    expect(state.petalGatesOpen).toBe(true);
+    expect(state.collectedFlowers).toBe(4);
+    expect(state.rescuedBees).toBe(1);
+  });
+
+  it('solves Wabe 46 (dual plates + honey source/bowl/gate + grubs and mite)', () => {
+    const level = CAMPAIGN_LEVELS.find((l) => l.id === 'wabe-46')!;
+    expect(level.world).toBe(4);
+
+    const state = createGameState(level);
+    runMoves(
+      state,
+      expand([
+        ['down', 1],
+        ['right', 1], // F(2,2)
+        ['left', 1],
+        ['down', 3], // (1,5)
+        ['right', 3], // pushes O(3,5) -> D(5,5), player at (4,5)
+        ['left', 3], // (1,5)
+        ['down', 3], // (1,8)
+        ['right', 2], // pushes O(2,8) -> D(4,8), player at (3,8) -> T(13,5) opens!
+        ['left', 2], // (1,8)
+        ['up', 1], // (1,7)
+        ['right', 11], // (12,7)
+        ['up', 3], // (12,4)
+        ['left', 3], // (9,4)
+        ['up', 1], // (9,3) opens honey dam under ~~(9,2) -> fills U(9,5), opens G(13,9)!
+        ['down', 1], // (9,4) step below/aside!
+        ['right', 3] // (12,4)
+      ])
+    );
+
+    expect(state.petalGatesOpen).toBe(true);
+    for (let i = 0; i < 20 && !state.gatesOpen; i++) {
+      stepGame(state, null);
+    }
+    expect(state.gatesOpen).toBe(true);
+
+    runMoves(
+      state,
+      expand([
+        ['down', 4], // (12,8)
+        ['left', 2] // (10,8)
+      ])
+    );
+    for (let i = 0; i < 40 && state.grid[9][9].type !== 'flower'; i++) {
+      stepGame(state, null);
+    }
+    runMoves(
+      state,
+      expand([
+        ['down', 1], // (10,9)
+        ['left', 1], // F(9,9)
+        ['right', 5] // crosses open G(13,9) -> (14,9)
+      ])
+    );
+    if (state.collectedFlowers < 3) {
+      stepGame(state, 'right'); // (15,9)
+      collectIfRegrowing(state, 15, 8, 'up', 'down');
+    } else {
+      runMoves(state, expand([['right', 1], ['up', 1], ['down', 1]]));
+    }
+    runMoves(state, expand([['right', 2]])); // (17,9) left of F(18,9)
+    if (state.collectedFlowers < 4) {
+      collectIfRegrowing(state, 18, 9, 'right', 'left');
+    }
+    runMoves(
+      state,
+      expand([
+        ['left', 5], // (12,9)
+        ['up', 4], // (12,5)
+        ['right', 4], // crosses T(13,5) -> (16,5)
+        ['right', 1], // (17,5)
+        ['up', 1], // (17,4) frees B(16,4)
+        ['up', 2], // (17,2)
+        ['left', 1], // F(16,2)
+        ['up', 1], // (16,1)
+        ['right', 3] // E(19,1)
+      ])
+    );
+
+    const info = `pos=${state.player.x},${state.player.y} fl=${state.collectedFlowers}/${state.requiredFlowers} bee=${state.rescuedBees}/${state.totalBees}`;
+    expect(state.status, info).toBe('won');
+    expect(state.petalGatesOpen).toBe(true);
+    expect(state.gatesOpen).toBe(true);
+    expect(state.collectedFlowers).toBe(5);
+    expect(state.rescuedBees).toBe(1);
+  });
+
+  it('solves Wabe 47 (dual portals + bowl/gate + rolling pot + grubs and mites)', () => {
+    const level = CAMPAIGN_LEVELS.find((l) => l.id === 'wabe-47')!;
+    expect(level.world).toBe(4);
+
+    const state = createGameState(level);
+    runMoves(
+      state,
+      expand([
+        ['down', 1],
+        ['right', 1], // F(2,2)
+        ['right', 1],
+        ['down', 1], // enters 1(3,3) -> warps to 1(9,9)
+        ['up', 1], // (9,8)
+        ['left', 6] // (3,8) right of F(2,8)
+      ])
+    );
+    if (state.collectedFlowers < 2) {
+      collectIfRegrowing(state, 2, 8, 'left', 'right');
+    }
+    runMoves(
+      state,
+      expand([
+        ['right', 8], // (11,8)
+        ['up', 4], // (11,4)
+        ['left', 2], // (9,4)
+        ['up', 1], // (9,3) opens honey dam below ~~(9,2) -> fills U(9,5), opens G(12,8)!
+        ['down', 1], // (9,4) step below #(10,3)
+        ['right', 2], // (11,4)
+        ['down', 1] // (11,5)
+      ])
+    );
+
+    for (let i = 0; i < 20 && !state.gatesOpen; i++) {
+      stepGame(state, null);
+    }
+    expect(state.gatesOpen).toBe(true);
+
+    runMoves(
+      state,
+      expand([
+        ['down', 3], // (11,8)
+        ['right', 7] // crosses open G(12,8) -> (18,8) above F(18,9)
+      ])
+    );
+    if (state.collectedFlowers < 3) {
+      collectIfRegrowing(state, 18, 9, 'down', 'up');
+    }
+    runMoves(state, expand([['left', 3]])); // (15,8) above F(15,9)
+    if (state.collectedFlowers < 4) {
+      collectIfRegrowing(state, 15, 9, 'down', 'up');
+    }
+    runMoves(
+      state,
+      expand([
+        ['left', 10], // (5,8)
+        ['up', 3], // enters 2(5,5) -> warps to 2(14,1)
+        ['down', 2], // (14,3)
+        ['right', 1], // (15,3)
+        ['up', 1], // (15,2)
+        ['left', 1], // step aside to (14,2) -> O(16,2) rolls left off R(16,3) into (15,2)->(15,3)
+        [null, 4],
+        ['right', 1], // (15,2) -> directly across O's vacated tile, avoiding portal 2(14,1)!
+        ['right', 3], // crosses (16,2) -> F(18,2)
+        ['down', 2], // (18,4) frees B(18,5)
+        ['right', 1], // (19,4)
+        ['up', 3] // E(19,1)
+      ])
+    );
+
+    const info = `pos=${state.player.x},${state.player.y} fl=${state.collectedFlowers}/${state.requiredFlowers} bee=${state.rescuedBees}/${state.totalBees}`;
+    expect(state.status, info).toBe('won');
+    expect(state.dizzyRemainingMs).toBe(0);
+    expect(state.gatesOpen).toBe(true);
+    expect(state.collectedFlowers).toBe(5);
+    expect(state.rescuedBees).toBe(1);
+  });
+
+  it('solves Wabe 48 (Bienenstock 4 grand finale combining every game mechanic)', () => {
+    const level = CAMPAIGN_LEVELS.find((l) => l.id === 'wabe-48')!;
+    expect(level.world).toBe(4);
+
+    const state = createGameState(level);
+    runMoves(
+      state,
+      expand([
+        ['down', 1],
+        ['right', 1], // F(2,2)
+        ['left', 1],
+        ['down', 2], // (1,4)
+        ['right', 3], // pushes O(3,4) -> D(5,4), player at (4,4)
+        ['left', 3], // (1,4)
+        ['down', 4], // (1,8)
+        ['right', 1], // F(2,8)
+        ['up', 1], // (2,7) frees B(3,7)
+        ['down', 3], // (2,10)
+        ['right', 1], // enters 1(3,10) -> warps to 1(7,1)
+        ['down', 1],
+        ['right', 1], // (8,2)
+        ['down', 3], // (8,5)
+        ['right', 1], // (9,5)
+        ['up', 3], // (9,4)->(9,3)->(9,2)
+        ['left', 1], // (8,2) -> O(10,2) rolls off R(10,3) and drops onto D(9,6) -> T(13,5) opens!
+        [null, 10]
+      ])
+    );
+
+    expect(state.petalGatesOpen).toBe(true);
+
+    runMoves(
+      state,
+      expand([
+        ['down', 3], // (8,5)
+        ['right', 6], // crosses T(13,5) -> (14,5)
+        ['up', 3], // (14,2)
+        ['right', 1], // (15,2) opens beside ~~(16,2) above U(15,3)!
+        ['left', 1], // step aside to (14,2)
+        ['down', 3], // (14,5)
+        ['right', 3] // (17,5) above G(17,6)
+      ])
+    );
+
+    for (let i = 0; i < 20 && !state.gatesOpen; i++) {
+      stepGame(state, null);
+    }
+    expect(state.gatesOpen).toBe(true);
+
+    runMoves(
+      state,
+      expand([
+        ['down', 2], // crosses G(17,6) -> (17,7)
+        ['right', 1], // (18,7) safely past O(16,8)
+        ['down', 3], // (18,10) frees B(19,10) cleanly early too!
+        ['left', 4] // enters 2(14,10) -> warps to 2(8,10)
+      ])
+    );
+
+    runMoves(
+      state,
+      expand([
+        ['up', 1] // (8,9) -> wait at (8,9) so M(9,8) can step off F(9,8) into (9,9)
+      ])
+    );
+    for (let i = 0; i < 40 && state.grid[8][9].type !== 'flower'; i++) {
+      stepGame(state, null);
+    }
+    runMoves(
+      state,
+      expand([
+        ['right', 1], // (9,9) frees B(10,9)
+        ['up', 1], // F(9,8)
+        ['down', 2], // (9,10)
+        ['left', 1], // enters 2(8,10) -> warps back to 2(14,10)
+        ['right', 5], // (19,10)
+        ['up', 1] // (19,9) directly left of F(20,9)
+      ])
+    );
+    if (state.collectedFlowers < 4) {
+      collectIfRegrowing(state, 20, 9, 'right', 'left');
+    }
+    runMoves(
+      state,
+      expand([
+        ['up', 6], // (19,9) -> crosses (19,6) -> (19,3)
+        ['right', 1], // (20,3)
+        ['up', 1] // (20,2) right of F(19,2)
+      ])
+    );
+    if (state.collectedFlowers < 5) {
+      collectIfRegrowing(state, 19, 2, 'left', 'right');
+    }
+    runMoves(
+      state,
+      expand([
+        ['up', 1], // (20,1)
+        ['right', 1] // E(21,1)
+      ])
+    );
+
+    const info = `pos=${state.player.x},${state.player.y} fl=${state.collectedFlowers}/${state.requiredFlowers} bee=${state.rescuedBees}/${state.totalBees}`;
+    expect(state.status, info).toBe('won');
+    expect(state.dizzyRemainingMs).toBe(0);
+    expect(state.petalGatesOpen).toBe(true);
+    expect(state.gatesOpen).toBe(true);
+    expect(state.collectedFlowers).toBe(5);
     expect(state.rescuedBees).toBe(3);
   });
 });

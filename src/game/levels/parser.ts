@@ -1,4 +1,4 @@
-import { Cell, GridPos, LevelDefinition, PortalDef, TileType } from '../types';
+import { Cell, GridPos, LevelDefinition, PestKind, PortalDef, TileType } from '../types';
 import { makeCell } from '../honeyPhysics';
 
 export interface ParsedLevel {
@@ -15,6 +15,7 @@ export interface ParsedLevel {
   pressurePlates: GridPos[];
   petalGates: GridPos[];
   portals: PortalDef[];
+  pests: Array<{ x: number; y: number; kind: PestKind }>;
   nextEntityId: number;
 }
 
@@ -27,6 +28,8 @@ const CHAR_TO_TILE: Record<string, TileType> = {
   D: 'empty',
   '1': 'empty',
   '2': 'empty',
+  M: 'empty',
+  m: 'empty',
   F: 'flower',
   B: 'trapped_bee',
   O: 'honeypot',
@@ -61,6 +64,7 @@ export function parseLevelAscii(level: LevelDefinition): ParsedLevel {
   const pressurePlates: GridPos[] = [];
   const petalGates: GridPos[] = [];
   const portals: PortalDef[] = [];
+  const pests: Array<{ x: number; y: number; kind: PestKind }> = [];
 
   const grid: Cell[][] = [];
 
@@ -97,6 +101,8 @@ export function parseLevelAscii(level: LevelDefinition): ParsedLevel {
       if (ch === 'D') pressurePlates.push({ x, y });
       if (ch === '1') portals.push({ x, y, pair: 0 });
       if (ch === '2') portals.push({ x, y, pair: 1 });
+      if (ch === 'M') pests.push({ x, y, kind: 'grub' });
+      if (ch === 'm') pests.push({ x, y, kind: 'mite' });
       if (tileType === 'flower') totalFlowers++;
       if (tileType === 'trapped_bee') totalBees++;
       if (tileType === 'honey_source') honeySourceCount++;
@@ -140,6 +146,7 @@ export function parseLevelAscii(level: LevelDefinition): ParsedLevel {
     pressurePlates,
     petalGates,
     portals,
+    pests,
     nextEntityId
   };
 }

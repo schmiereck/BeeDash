@@ -43,6 +43,16 @@ export const CAMPAIGN_WORLDS: CampaignWorld[] = [
     personalityTag: 'Schüchtern & schlau',
     subtitle: 'Waben 25–36',
     accentColor: '#e87fa5'
+  },
+  {
+    number: 4,
+    emoji: '💤',
+    title: 'Bienenstock 4: Die Faulen',
+    shortTitle: 'Die Faulen',
+    personality: 'lazy',
+    personalityTag: 'Gemütlich & verträumt',
+    subtitle: 'Waben 37–48',
+    accentColor: '#639cd9'
   }
 ];
 
@@ -837,6 +847,274 @@ const RAW_CAMPAIGN_LEVELS: LevelDefinition[] = [
       '#.....#..B..###R....F.#',
       '#..1..#E...2#.2....B..#',
       '#.....#.....#.........#',
+      '#######################'
+    ]
+  },
+  {
+    id: 'wabe-37',
+    number: 37,
+    world: 4,
+    title: 'Die gemütliche Made',
+    chapter: 'Kapitel 10: Hungrige Maden & flinke Milben',
+    mapCoords: { q: 0, r: 0 },
+    intro: 'Willkommen bei den Faulen! Hier wohnt eine langsame Waben-Made. Sie futtert sich gemächlich durchs Wachs und nascht gern an Blüten – aber keine Sorge: jede vernaschte Blüte wächst als Knospe wieder nach!',
+    tip: 'Du brauchst vor der Made keine Angst zu haben! Wenn du schneller bist, schnappst du ihr die Blüten direkt vor der Nase weg – oder du wartest kurz, bis ihre Knospe wieder aufgeblüht ist.',
+    ascii: [
+      '#############',
+      '#P..F......E#',
+      '#..##...##..#',
+      '#.....M.....#',
+      '#.F.......F.#',
+      '#...##.##...#',
+      '#.....F.....#',
+      '#############'
+    ]
+  },
+  {
+    id: 'wabe-38',
+    number: 38,
+    world: 4,
+    title: 'Nachwachsende Knospen',
+    chapter: 'Kapitel 10: Hungrige Maden & flinke Milben',
+    mapCoords: { q: 1, r: 0 },
+    intro: 'Gleich zwei Maden suchen im Wachs nach frischen Blüten! Befreie unten deine Bienenfreundin und schnappe dir alle Blüten – notfalls nach dem Nachwachsen!',
+    tip: 'Sobald eine Made eine Blüte vernascht hat, sprießt dort eine kleine grüne Knospe. Nach einigen Sekunden blüht sie wieder prachtvoll auf!',
+    ascii: [
+      '#############',
+      '#P..#...#..E#',
+      '#.F.#.F.#...#',
+      '# M # M #F..#',
+      '#.......#...#',
+      '#..###.###..#',
+      '#.F...B...F.#',
+      '#...........#',
+      '#############'
+    ]
+  },
+  {
+    id: 'wabe-39',
+    number: 39,
+    world: 4,
+    title: 'Flinke Milbe im Gang',
+    chapter: 'Kapitel 10: Hungrige Maden & flinke Milben',
+    mapCoords: { q: 1, r: 1 },
+    intro: 'Die kleine rote Honig-Milbe flitzt besonders schnell durch bereits freie Tunnel! Im weichen Wachs hingegen bremst sie ab.',
+    tip: 'Fliege zuerst links hinunter zu den offenen Blüten, bevor die Milbe dich überholt, und arbeite dich dann rechts hoch bis zum Koffer!',
+    ascii: [
+      '#############',
+      '#P..F......E#',
+      '#.###.###.#.#',
+      '#.F.....F.#.#',
+      '#.#.###.#.#.#',
+      '#...........#',
+      '#.#######.#.#',
+      '#F    m   .F#',
+      '#############'
+    ]
+  },
+  {
+    id: 'wabe-40',
+    number: 40,
+    world: 4,
+    title: 'Topf drauf, Pause!',
+    chapter: 'Kapitel 10: Hungrige Maden & flinke Milben',
+    mapCoords: { q: 0, r: 1 },
+    intro: 'Schwere Honigtöpfe helfen gegen die hungrige Made! Lass den Topf oben rechts in den Tunnel unter ihm plumpsen, damit die Made sanft schläft.',
+    tip: '1) Grabe unter dem Honigtopf senkrecht bis zu dem offenen Tunnel über der Made und weiche seitlich aus – plumps, schon versperrt der Topf ihren Weg! 2) Sammle alle Blüten ein und befreie rechts die Freundin.',
+    ascii: [
+      '#################',
+      '#P....O....#...E#',
+      '#.F........#.F..#',
+      '#......###.#....#',
+      '#...M  F...#....#',
+      '#..###.###.#.##.#',
+      '#.......m..#..B.#',
+      '#.F...###..#....#',
+      '#.....F........F#',
+      '#################'
+    ]
+  },
+  {
+    id: 'wabe-41',
+    number: 41,
+    world: 4,
+    title: 'Schlummer-Topf am Rundkorb',
+    chapter: 'Kapitel 10: Hungrige Maden & flinke Milben',
+    mapCoords: { q: -1, r: 1 },
+    intro: 'Eine flink umherwuselnde Milbe, eine gemächliche Made und ein wackeliger Honigtopf auf der runden Wabe erwarten dich!',
+    tip: 'Lass den Wachs-Schutz um die rechte Seitenkammer ruhig so lange stehen, bis du links alles gesammelt hast – die runde Wabe hilft dir beim Abrollen des Topfes nach Wunsch.',
+    ascii: [
+      '#################',
+      '#P....O....#...E#',
+      '#.F...R....#.F..#',
+      '#..........#....#',
+      '#..######..#....#',
+      '#.F.#..M...#..B.#',
+      '#...#..F...#.##.#',
+      '#..........#....#',
+      '#.m.....F..#..F.#',
+      '#...............#',
+      '#################'
+    ]
+  },
+  {
+    id: 'wabe-42',
+    number: 42,
+    world: 4,
+    title: 'Blüten-Schalter & Waben-Diebe',
+    chapter: 'Kapitel 10: Hungrige Maden & flinke Milben',
+    mapCoords: { q: -1, r: 0 },
+    intro: 'Ein Blüten-Kissen öffnet das rechte Gatter – währenddessen knabbert die Made schon an der linken Blüte! Entscheid dich klug für deine Reihenfolge.',
+    tip: '1) Schnappe dir zuerst schnell die linke Blüte oder warte geduldig, bis sie nachwächst. 2) Schiebe dann den oberen Honigtopf nach rechts auf die Druckplatte und rette hinter dem Tor deine Freundin!',
+    ascii: [
+      '#############',
+      '#P..O D#...E#',
+      '#.F.####.F..#',
+      '#......T....#',
+      '#..M...#.##.#',
+      '#.F....#.B..#',
+      '#......#....#',
+      '#...m....F..#',
+      '#############'
+    ]
+  },
+  {
+    id: 'wabe-43',
+    number: 43,
+    world: 4,
+    title: 'Honigfluss trotz Maden-Appetit',
+    chapter: 'Kapitel 11: Im verträumten Bienenstock',
+    mapCoords: { q: 0, r: -1 },
+    intro: 'In den tieferen Hallen warten Honigquelle, goldene Schale und Honig-Tor – gleichzeitig naschen zwei Maden fröhlich vor sich hin.',
+    tip: 'Grabe zuerst links deine erste Freundin frei, wandere unten in den mittleren Raum und öffne der Honigquelle senkrecht den Weg in die goldene Schale. Schon öffnet sich rechts das Honig-Tor!',
+    ascii: [
+      '###################',
+      '#P....#S...#.....E#',
+      '#.F...#~~..#.F....#',
+      '#..M..##...#......#',
+      '#.....#....#..B...#',
+      '#....F#..U.#......#',
+      '#.....####.#G######',
+      '#..........#......#',
+      '#.B...#..M.....F..#',
+      '#.....#..F.#......#',
+      '###################'
+    ]
+  },
+  {
+    id: 'wabe-44',
+    number: 44,
+    world: 4,
+    title: 'Wettlauf durch Zauber-Portale',
+    chapter: 'Kapitel 11: Im verträumten Bienenstock',
+    mapCoords: { q: 1, r: -1 },
+    intro: 'Zwei Zauber-Portale verbinden ferne Kammern, während zwei flinke Milben schon Kurs auf die versteckten Blüten genommen haben!',
+    tip: '1) Nutze links das lila Portal nach unten rechts und sammle schnell die Blüte ein. 2) Arbeite dich in der Mitte hoch und hinüber nach unten links zur Freundin. 3) Durchs türkise Portal geht es schließlich zum Koffer!',
+    ascii: [
+      '###################',
+      '#P....#.....F#2..E#',
+      '#.F...#...####....#',
+      '#..1..#..m...#..F.#',
+      '#######......#....#',
+      '#....2#..F...#....#',
+      '#.F...#####.#######',
+      '#..B..#......#....#',
+      '#................F#',
+      '#.....#..m...#.1..#',
+      '###################'
+    ]
+  },
+  {
+    id: 'wabe-45',
+    number: 45,
+    world: 4,
+    title: 'Rolltreppe aufs Blüten-Kissen',
+    chapter: 'Kapitel 11: Im verträumten Bienenstock',
+    mapCoords: { q: 2, r: -1 },
+    intro: 'Oben ruht ein schwerer Topf auf der runden Wabe, direkt über einer tiefen Blüten-Druckplatte! Beeil dich an der Made vorbei nach oben.',
+    tip: '1) Sammle links ein, wandere durch den rechten Durchgang nach oben in die Mittelkammer und grabe die linke Fallspalte bis auf die Druckplatte frei. 2) Fliege oben über den Topf nach links – schon rollt er genau aufs Kissen und öffnet das Blüten-Tor!',
+    ascii: [
+      '###################',
+      '#P....#..O..#....E#',
+      '#.F...#..R..#..F..#',
+      '#..M..#.....#.....#',
+      '#.....#.....T.....#',
+      '#.....#.....#..m..#',
+      '#.....##D#.##.##.##',
+      '#.......#...#..B..#',
+      '#.F...#.....#.....#',
+      '#.....#.....#..F..#',
+      '###################'
+    ]
+  },
+  {
+    id: 'wabe-46',
+    number: 46,
+    world: 4,
+    title: 'Die doppelte Bäckerei',
+    chapter: 'Kapitel 11: Im verträumten Bienenstock',
+    mapCoords: { q: 2, r: 0 },
+    intro: 'Zwei Blüten-Druckplatten auf der linken Seite, dazu eine goldene Honigschale in der Mitte – und überall wuseln hungrige Mitbewohner herum!',
+    tip: '1) Drücke beide Honigtöpfe links auf ihre Blüten-Kissen – das Blüten-Tor rechts öffnet sich. 2) Öffne in der Mitte den Weg zwischen Honigsee und goldener Schale, damit unten das Honig-Tor aufspringt!',
+    ascii: [
+      '#####################',
+      '#P....#..S...#.....E#',
+      '#.F...#..~~..#..F...#',
+      '#..M..#.#.#..#......#',
+      '#.....#......#..B...#',
+      '#..O D#..U...T......#',
+      '#.#########..########',
+      '#............#..m...#',
+      '#.O D.#..M...#.F....#',
+      '#.###.#..F...G....F.#',
+      '#####################'
+    ]
+  },
+  {
+    id: 'wabe-47',
+    number: 47,
+    world: 4,
+    title: 'Zwei-Portale-Kuchen',
+    chapter: 'Kapitel 11: Im verträumten Bienenstock',
+    mapCoords: { q: 2, r: 1 },
+    intro: 'Lila führt in den Keller, Türkis hoch zum geheimen Abroll-Topf vor dem Koffer – und zwischendurch will die goldene Honigschale gefüllt werden!',
+    tip: '1) Fliege per lila Portal in die Mitte, fülle dort die Honigschale für das Honig-Tor und besuche unten rechts und unten links die Blüten. 2) Durchs türkise Portal rollst du den letzten Honigtopf links von der runden Wabe weg zur Freundin und zum Koffer!',
+    ascii: [
+      '#####################',
+      '#P....#..S...#2.#..E#',
+      '#.F...#..~~..#..O.F.#',
+      '#..1..#.#.##.#..R#..#',
+      '#######......#..##..#',
+      '#....2#..U...#...#B.#',
+      '#..M..#####.#########',
+      '#.....#.....#....m..#',
+      '#.F........mG..M....#',
+      '#.....#..1..#..F..F.#',
+      '#####################'
+    ]
+  },
+  {
+    id: 'wabe-48',
+    number: 48,
+    world: 4,
+    title: 'Das große Finale der Faulen',
+    chapter: 'Kapitel 11: Im verträumten Bienenstock',
+    mapCoords: { q: 3, r: 0 },
+    intro: 'Das krönende Meisterstück von Bienenstock 4! Druckplatten, Rolltopf, Honigquelle, Zauber-Portale, Bienenfreundinnen sowie Maden und Milben greifen hier alle ineinander.',
+    tip: '1) Drücke links oben die Druckplatte und nimm unten das lila Portal. 2) Rolle den oberen Topf auf das zweite Kissen, um das Blüten-Tor zu öffnen. 3) Fülle dahinter die Honigschale fürs Honig-Tor, springe unten rechts durchs türkise Portal in die Schatzkammer und kehre per Portal zurück zum Koffer!',
+    ascii: [
+      '#######################',
+      '#P....#1.....#..S.#..E#',
+      '#.F...#...O..#..~~#F..#',
+      '#..M..#...R..#..U##...#',
+      '#..O D#......#..#.#...#',
+      '#.#####..m...T....#...#',
+      '#.....#.#D#..####G#.#.#',
+      '#..B..#########.......#',
+      '#.F...#..F..#m..O.....#',
+      '#.....#...B.#...R...F.#',
+      '#..1..#.2...#.2....B..#',
+      '#.....#..M..#.........#',
       '#######################'
     ]
   }

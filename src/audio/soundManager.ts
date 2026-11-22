@@ -282,7 +282,8 @@ export class SoundManager {
       key === 'pot_wobble' ||
       key === 'honey_drip' ||
       key === 'bee_move' ||
-      key === 'sticky_blocked'
+      key === 'sticky_blocked' ||
+      key === 'pest_dig'
     ) {
       const prev = this.lastPlayedAt.get(key) ?? 0;
       if (nowMs - prev < 140) return;
@@ -520,6 +521,22 @@ export class SoundManager {
         });
         break;
       }
+      case 'pest_dig':
+        this.playTone(ctx, 195, 135, 0.06, 'triangle', 0.08, 0);
+        this.playTone(ctx, 160, 115, 0.05, 'triangle', 0.06, 0.04);
+        break;
+      case 'pest_eat_flower':
+        this.playTone(ctx, 420, 290, 0.08, 'triangle', 0.11, 0);
+        this.playTone(ctx, 340, 230, 0.09, 'sine', 0.1, 0.06);
+        break;
+      case 'flower_regrow':
+        this.playTone(ctx, 523.25, 659.25, 0.1, 'sine', 0.12, 0);
+        this.playTone(ctx, 783.99, 1046.5, 0.16, 'sine', 0.12, 0.07);
+        break;
+      case 'pest_sleep':
+        this.playTone(ctx, 480, 320, 0.1, 'sine', 0.09, 0);
+        this.playTone(ctx, 640, 720, 0.11, 'sine', 0.08, 0.07);
+        break;
       case 'win':
         this.playTone(ctx, 523.25, 523.25, 0.14, 'triangle', 0.16, 0);
         this.playTone(ctx, 659.25, 659.25, 0.14, 'triangle', 0.16, 0.1);

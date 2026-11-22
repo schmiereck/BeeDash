@@ -1,3 +1,4 @@
+import { bonkPestByPot, hasPestAt } from './pestPhysics';
 import { Cell, GameEvent, GameState } from './types';
 
 export const POT_WOBBLE_TICKS = 1;
@@ -34,6 +35,9 @@ function isSafeRetreat(state: GameState, x: number, y: number): boolean {
     return false;
   }
   if (state.player.x === x && state.player.y === y) {
+    return false;
+  }
+  if (hasPestAt(state, x, y)) {
     return false;
   }
   return state.grid[y][x].type === 'empty';
@@ -226,7 +230,8 @@ export function updatePressurePlates(state: GameState, events: GameEvent[]): voi
     const allClear = state.petalGates.every(
       (pos) =>
         state.grid[pos.y]?.[pos.x]?.type === 'empty' &&
-        !(state.player.x === pos.x && state.player.y === pos.y)
+        !(state.player.x === pos.x && state.player.y === pos.y) &&
+        !hasPestAt(state, pos.x, pos.y)
     );
     if (allClear) {
       state.petalGatesOpen = false;
@@ -253,6 +258,9 @@ function isFreeForRoll(state: GameState, x: number, y: number): boolean {
     return false;
   }
   if (state.player.x === x && state.player.y === y) {
+    return false;
+  }
+  if (hasPestAt(state, x, y)) {
     return false;
   }
   return state.grid[y][x].type === 'empty';
@@ -288,6 +296,7 @@ function stepHoneyPots(
       const isPlayerBelow = state.player.x === x && state.player.y === y + 1;
 
       if (below.type === 'empty' && !isPlayerBelow) {
+        const pestBelow = state.pests.find((p) => p.x === x && p.y === y + 1);
         if (cell.fallState === 'resting') {
           cell.fallState = 'wobbling';
           cell.wobbleTicks = 1;
@@ -297,11 +306,17 @@ function stepHoneyPots(
             cell.wobbleTicks++;
             events.push({ type: 'pot_wobble', x, y });
           } else {
+            if (pestBelow) {
+              bonkPestByPot(state, pestBelow, events);
+            }
             cell.fallState = 'falling';
             cell.wobbleTicks = 0;
             moveCell(state, x, y, x, y + 1);
           }
         } else {
+          if (pestBelow) {
+            bonkPestByPot(state, pestBelow, events);
+          }
           moveCell(state, x, y, x, y + 1);
         }
         continue;
@@ -390,8 +405,9 @@ function stepHoneyBowls(state: GameState, events: GameEvent[]): void {
       updatedIds.add(cell.id);
       const below = state.grid[y + 1][x];
       const isPlayerBelow = state.player.x === x && state.player.y === y + 1;
+      const isPestBelow = hasPestAt(state, x, y + 1);
 
-      if (below.type === 'empty' && !isPlayerBelow) {
+      if (below.type === 'empty' && !isPlayerBelow && !isPestBelow) {
         if (cell.fallState === 'resting') {
           cell.fallState = 'wobbling';
           cell.wobbleTicks = 1;
@@ -411,8 +427,8 @@ function stepHoneyBowls(state: GameState, events: GameEvent[]): void {
         continue;
       }
 
-      if (isPlayerBelow) {
-        // Golden honey bowls never hurt the bee — wait safely above until she moves
+      if (isPlayerBelow || isPestBelow) {
+        // Golden honey bowls never hurt the bee or hive friends — wait safely above until clear
         cell.fallState = 'resting';
         cell.wobbleTicks = 0;
         continue;
@@ -458,7 +474,7 @@ function stepLiquidHoneyDrop(state: GameState, events: GameEvent[]): void {
         continue;
       }
 
-      if (below.type === 'empty' && !isPlayerBelow) {
+      if (below.type === 'empty' && !isPlayerBelow && !hasPestAt(state, x, y + 1)) {
         if (cell.fallState === 'resting') {
           cell.fallState = 'wobbling';
           cell.wobbleTicks = 1;
@@ -536,11 +552,13 @@ function stepLiquidHoneySpread(state: GameState, events: GameEvent[]): void {
         if (nx <= 0 || nx >= state.width - 1) continue;
         const sideEmpty =
           state.grid[y][nx].type === 'empty' &&
-          !(state.player.x === nx && state.player.y === y);
+          !(state.player.x === nx && state.player.y === y) &&
+          !hasPestAt(state, nx, y);
         const dropBelowType = state.grid[y + 1][nx].type;
         const dropBelowFree =
           (dropBelowType === 'empty' || dropBelowType === 'honey_bowl') &&
-          !(state.player.x === nx && state.player.y === y + 1);
+          !(state.player.x === nx && state.player.y === y + 1) &&
+          !hasPestAt(state, nx, y + 1);
 
         if (sideEmpty && dropBelowFree) {
           if (!isFed) {
@@ -578,7 +596,8 @@ function stepLiquidHoneySpread(state: GameState, events: GameEvent[]): void {
           if (nx <= 0 || nx >= state.width - 1) continue;
           const sideEmpty =
             state.grid[y][nx].type === 'empty' &&
-            !(state.player.x === nx && state.player.y === y);
+            !(state.player.x === nx && state.player.y === y) &&
+            !hasPestAt(state, nx, y);
           if (sideEmpty) {
             const spawned = makeCell(state.nextEntityId++, 'honey_liquid', nx, y);
             spawned.prevX = x;
@@ -639,6 +658,7 @@ function stepLiquidHoneySpread(state: GameState, events: GameEvent[]): void {
       if (
         y + 1 < state.height - 1 &&
         state.grid[y + 1][x].type === 'empty' &&
+        !hasPestAt(state, x, y + 1) &&
         honeyCount < maxHoneyTiles
       ) {
         const drop = makeCell(state.nextEntityId++, 'honey_liquid', x, y + 1);

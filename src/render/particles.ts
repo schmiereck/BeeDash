@@ -172,6 +172,67 @@ export class ParticleSystem {
     this.spawnBurst(gridX, -gridY, 0.36, 16, colors, 3.2, 0.4, 0.72, 1.05);
   }
 
+  emitPestNibble(gridX: number, gridY: number): void {
+    this.spawnBurst(
+      gridX,
+      -gridY,
+      0.24,
+      6,
+      [0xf6c344, 0x9cd66d, 0xffe285],
+      1.7,
+      3.6,
+      0.42,
+      0.72
+    );
+  }
+
+  emitPestEatFlower(gridX: number, gridY: number): void {
+    this.spawnBurst(
+      gridX,
+      -gridY,
+      0.3,
+      9,
+      [0xf89cb0, 0xffd54f, 0x9cd66d, 0xffffff],
+      2.1,
+      2.9,
+      0.52,
+      0.85
+    );
+  }
+
+  emitFlowerRegrow(gridX: number, gridY: number): void {
+    this.spawnBurst(
+      gridX,
+      -gridY,
+      0.34,
+      12,
+      [0x6ac266, 0x9cd66d, 0xffe066, 0xffffff],
+      2.5,
+      1.2,
+      0.66,
+      0.98
+    );
+  }
+
+  emitPestSleep(gridX: number, gridY: number): void {
+    const colors = [0xa5d8ff, 0xffe066, 0xffffff];
+    for (let i = 0; i < 6; i++) {
+      const ang = (i / 6) * Math.PI * 2;
+      this.spawnStar(
+        gridX,
+        -gridY,
+        0.38,
+        colors[i % colors.length],
+        Math.cos(ang) * 1.4,
+        Math.sin(ang) * 1.2 + 0.5,
+        0.55 + Math.random() * 0.45,
+        1.1,
+        0.65,
+        0.78
+      );
+    }
+  }
+
   private spawnStar(
     x: number,
     y: number,
