@@ -17,10 +17,16 @@ import {
   moveAlberta,
   undoLastWire
 } from './albertaEngine';
-import { ALBERTA_LEVELS, CLOCK_COLORS, CYCLE_LENGTH } from './albertaLevels';
+import {
+  ALBERTA_LEVELS,
+  CLOCK_COLORS,
+  CYCLE_LENGTH,
+  getDisplayCycleLength
+} from './albertaLevels';
 import {
   AlbertaModelBundle,
   LogicBlockVisual,
+  SocketHighlightState,
   SourceCubeVisual,
   TargetBlockVisual,
   WireVisual,
@@ -28,7 +34,8 @@ import {
   createSourceCubeMesh,
   createTargetBlockMesh,
   createWireMesh,
-  createWorkbenchFloor
+  createWorkbenchFloor,
+  setSocketRingVisual
 } from './albertaModels';
 import { AlbertaEvent, AlbertaGameState, SocketDef } from './albertaTypes';
 
@@ -56,6 +63,9 @@ export class AlbertaOverlay {
   private state: AlbertaGameState = createAlbertaState(ALBERTA_LEVELS[0]);
   private completedIds = new Set<string>();
   private tipVisible = false;
+  private rhythmVisible = true;
+  private clockPaused = false;
+  private zoomFactor = 1.0;
   private noticeText = '';
   private noticeTimer = 0;
 
@@ -85,18 +95,25 @@ export class AlbertaOverlay {
   private lastActiveWireHash = '';
 
   // DOM handles
+  private bodyEl: HTMLElement | null = null;
   private canvasWrapEl: HTMLElement | null = null;
   private levelPillsEl: HTMLElement | null = null;
   private promptBtnEl: HTMLButtonElement | null = null;
   private undoBtnEl: HTMLButtonElement | null = null;
   private muteBtnEl: HTMLButtonElement | null = null;
+  private pauseClockBtnEl: HTMLButtonElement | null = null;
+  private rhythmToggleBtnEl: HTMLButtonElement | null = null;
+  private rhythmSidebarEl: HTMLElement | null = null;
+  private rhythmTableEl: HTMLElement | null = null;
+  private rhythmSecBadgeEl: HTMLElement | null = null;
   private tipBoxEl: HTMLElement | null = null;
   private winBannerEl: HTMLElement | null = null;
-  private beatDotsEl: HTMLElement | null = null;
   private subtitleEl: HTMLElement | null = null;
   private lastBeatSec = -1;
+  private lastRhythmStructureKey = '';
 
   private boundPointerDown = (e: PointerEvent) => this.handleCanvasPointerDown(e);
+  private boundWheel = (e: WheelEvent) => this.handleCanvasWheel(e);
 
   constructor(
     root: HTMLElement,
@@ -119,11 +136,15 @@ export class AlbertaOverlay {
     this.active = true;
     this.levelIndex = Math.max(0, Math.min(ALBERTA_LEVELS.length - 1, levelIndex));
     this.tipVisible = false;
+    this.rhythmVisible = true;
+    this.clockPaused = false;
+    this.zoomFactor = 1.0;
     this.noticeText = '';
     this.noticeTimer = 0;
     this.clockTime = 0;
     this.elapsed = 0;
     this.lastBeatSec = -1;
+    this.lastRhythmStructureKey = '';
 
     this.buildDom();
     this.initScene();
@@ -155,6 +176,9 @@ export class AlbertaOverlay {
           </div>
           <div id="alberta-level-pills" class="alberta-level-pills"></div>
           <div class="alberta-actions">
+            <button id="alberta-zoom-out-btn" class="btn btn-secondary btn-compact" type="button" title="Herauszoomen">➖</button>
+            <button id="alberta-zoom-in-btn" class="btn btn-secondary btn-compact" type="button" title="Näher heranzoomen">➕</button>
+            <button id="alberta-rhythm-toggle-btn" class="btn btn-secondary btn-compact" type="button">📊 Takt-Tafel</button>
             <button id="alberta-undo-btn" class="btn btn-secondary btn-compact" type="button">↩️ Zurück</button>
             <button id="alberta-clear-btn" class="btn btn-secondary btn-compact" type="button">🗑️ Kabel</button>
             <button id="alberta-tip-btn" class="btn btn-pink btn-compact" type="button">💡 Tipp</button>
@@ -163,43 +187,83 @@ export class AlbertaOverlay {
           </div>
         </header>
 
-        <div class="alberta-legend-bar">
-          <div class="alberta-clock-badges">
-            ${([1, 2, 3, 4] as const)
-              .map(
-                (p) =>
-                  `<span class="alberta-clock-chip" style="--chip-col:${CLOCK_COLORS[p].css}">💡 ${p}s Takt</span>`
-              )
-              .join('')}
+        <div id="alberta-body" class="alberta-body">
+          <div class="alberta-viewport">
+            <div id="alberta-canvas-wrap" class="alberta-canvas-wrap"></div>
+            <div id="alberta-tip-box" class="alberta-tip-box hidden"></div>
+            <div id="alberta-win-banner" class="alberta-win-banner hidden"></div>
           </div>
-          <div id="alberta-beat-dots" class="alberta-beat-dots"></div>
-        </div>
 
-        <div class="alberta-viewport">
-          <div id="alberta-canvas-wrap" class="alberta-canvas-wrap"></div>
-          <div id="alberta-tip-box" class="alberta-tip-box hidden"></div>
-          <div id="alberta-win-banner" class="alberta-win-banner hidden"></div>
+          <aside id="alberta-rhythm-sidebar" class="alberta-rhythm-sidebar">
+            <div class="alberta-rhythm-header">
+              <span class="alberta-rhythm-title">📊 Live-Takt-Vergleich</span>
+              <span id="alberta-rhythm-sec" class="alberta-beat-sec">⏱ 1s / 8s</span>
+            </div>
+            <div class="alberta-rhythm-controls">
+              <button id="alberta-pause-clock-btn" class="btn btn-secondary btn-compact" type="button">⏸️ Pause</button>
+              <button id="alberta-step-clock-btn" class="btn btn-secondary btn-compact" type="button">⏭️ +1s</button>
+            </div>
+            <div id="alberta-rhythm-table" class="alberta-rhythm-table"></div>
+            <div class="alberta-rhythm-legend">
+              <span><i class="alberta-leg-dot on"></i> An</span>
+              <span><i class="alberta-leg-dot"></i> Aus</span>
+              <span><i class="alberta-leg-dot mis"></i> Abweichung</span>
+            </div>
+          </aside>
         </div>
 
         <footer class="alberta-bottom-bar">
           <button id="alberta-prompt-btn" class="alberta-prompt-btn" type="button"></button>
           <span class="alberta-controls-hint">
-            Laufen: Pfeiltasten / WASD / Joystick / Klick • Stecken: Leertaste / Enter • Abbrechen: Z / Backspace
+            Laufen: Pfeiltasten / WASD / Joystick / Klick • Stecken: Leertaste / Enter • Zoom: ➕/➖ / Mausrad • Abbrechen: Z
           </span>
         </footer>
       </div>
     `;
 
+    this.bodyEl = this.root.querySelector('#alberta-body');
     this.canvasWrapEl = this.root.querySelector('#alberta-canvas-wrap');
     this.levelPillsEl = this.root.querySelector('#alberta-level-pills');
     this.promptBtnEl = this.root.querySelector('#alberta-prompt-btn');
     this.undoBtnEl = this.root.querySelector('#alberta-undo-btn');
     this.muteBtnEl = this.root.querySelector('#alberta-mute-btn');
+    this.pauseClockBtnEl = this.root.querySelector('#alberta-pause-clock-btn');
+    this.rhythmToggleBtnEl = this.root.querySelector('#alberta-rhythm-toggle-btn');
+    this.rhythmSidebarEl = this.root.querySelector('#alberta-rhythm-sidebar');
+    this.rhythmTableEl = this.root.querySelector('#alberta-rhythm-table');
+    this.rhythmSecBadgeEl = this.root.querySelector('#alberta-rhythm-sec');
     this.tipBoxEl = this.root.querySelector('#alberta-tip-box');
     this.winBannerEl = this.root.querySelector('#alberta-win-banner');
-    this.beatDotsEl = this.root.querySelector('#alberta-beat-dots');
     this.subtitleEl = this.root.querySelector('#alberta-subtitle');
 
+    this.root.querySelector('#alberta-zoom-out-btn')?.addEventListener('click', () => {
+      this.sounds.play('ui_click');
+      this.adjustZoom(-0.14);
+    });
+    this.root.querySelector('#alberta-zoom-in-btn')?.addEventListener('click', () => {
+      this.sounds.play('ui_click');
+      this.adjustZoom(0.14);
+    });
+    this.rhythmToggleBtnEl?.addEventListener('click', () => {
+      this.sounds.play('ui_click');
+      this.rhythmVisible = !this.rhythmVisible;
+      this.bodyEl?.classList.toggle('rhythm-hidden', !this.rhythmVisible);
+      this.rhythmSidebarEl?.classList.toggle('hidden', !this.rhythmVisible);
+      this.syncRendererSize();
+      this.renderFrame();
+    });
+    this.pauseClockBtnEl?.addEventListener('click', () => {
+      this.sounds.play('ui_click');
+      this.setClockPaused(!this.clockPaused);
+    });
+    this.root.querySelector('#alberta-step-clock-btn')?.addEventListener('click', () => {
+      this.sounds.play('ui_click');
+      this.setClockPaused(true);
+      this.clockTime = Math.floor(this.clockTime) + 1.01;
+      const tickIdx = Math.floor(this.clockTime) % CYCLE_LENGTH;
+      this.syncSignalVisuals(tickIdx);
+      this.renderFrame();
+    });
     this.root.querySelector('#alberta-close-btn')?.addEventListener('click', () => {
       this.sounds.play('ui_click');
       this.close(true);
@@ -238,7 +302,7 @@ export class AlbertaOverlay {
 
     const w = Math.max(this.canvasWrapEl.clientWidth, 320);
     const h = Math.max(this.canvasWrapEl.clientHeight, 240);
-    this.camera = new THREE.PerspectiveCamera(40, w / h, 0.1, 100);
+    this.camera = new THREE.PerspectiveCamera(34, w / h, 0.1, 100);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -251,6 +315,7 @@ export class AlbertaOverlay {
     this.canvasWrapEl.innerHTML = '';
     this.canvasWrapEl.appendChild(this.renderer.domElement);
     this.renderer.domElement.addEventListener('pointerdown', this.boundPointerDown);
+    this.renderer.domElement.addEventListener('wheel', this.boundWheel, { passive: false });
 
     const hemi = new THREE.HemisphereLight(0xfff9ea, 0xbb8446, 1.15);
     const key = new THREE.DirectionalLight(0xfff4d6, 1.45);
@@ -280,15 +345,49 @@ export class AlbertaOverlay {
     this.fitCameraToLevel();
   }
 
+  private adjustZoom(delta: number): void {
+    this.zoomFactor = Math.max(0.75, Math.min(1.45, this.zoomFactor + delta));
+    this.fitCameraToLevel();
+    this.renderFrame();
+  }
+
+  private handleCanvasWheel(e: WheelEvent): void {
+    if (!this.active) return;
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 0.08 : -0.08;
+    this.adjustZoom(delta);
+  }
+
+  private setClockPaused(paused: boolean): void {
+    this.clockPaused = paused;
+    if (this.pauseClockBtnEl) {
+      this.pauseClockBtnEl.textContent = paused ? '▶️ Weiter' : '⏸️ Pause';
+    }
+  }
+
   private fitCameraToLevel(): void {
     if (!this.camera) return;
     const lvl = this.state.level;
     const cx = (lvl.width - 1) / 2;
     const cz = (lvl.height - 1) / 2;
-    const span = Math.max(lvl.width, lvl.height * 1.25);
-    const dist = span * (this.camera.aspect < 1.3 ? 1.12 : 0.92);
-    this.camera.position.set(cx, dist * 0.95, cz + dist * 0.78);
-    this.camera.lookAt(cx, 0.2, cz + 0.15);
+    const lookZ = cz - 0.12;
+    const tiltRad = THREE.MathUtils.degToRad(54);
+
+    const halfTanV = Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2);
+    const halfTanH = halfTanV * Math.max(0.5, this.camera.aspect);
+
+    const boardW = lvl.width + 0.3;
+    const boardH = lvl.height + 0.3;
+    const distV = ((boardH * Math.sin(tiltRad) + 0.55) * 0.505) / halfTanV;
+    const distH = (boardW * 0.505) / halfTanH;
+    const dist = Math.max(distV, distH) / this.zoomFactor;
+
+    this.camera.position.set(
+      cx,
+      0.25 + dist * Math.sin(tiltRad),
+      lookZ + dist * Math.cos(tiltRad)
+    );
+    this.camera.lookAt(cx, 0.25, lookZ);
     this.camera.updateProjectionMatrix();
   }
 
@@ -369,6 +468,9 @@ export class AlbertaOverlay {
     this.stepProgress = 1;
     this.albertaYaw = FACING_YAW.right;
     this.currentWorldPos.set(this.state.alberta.x, 0, this.state.alberta.y);
+    this.setClockPaused(false);
+    this.lastBeatSec = -1;
+    this.lastRhythmStructureKey = '';
 
     this.clearBoardVisuals();
     if (this.scene) {
@@ -396,7 +498,7 @@ export class AlbertaOverlay {
       const char = createStageCharacter(this.assets, 'alberta');
       this.albertaGroup = char.root;
       this.albertaCharMats = char.ownedMaterials;
-      this.albertaGroup.scale.setScalar(0.95);
+      this.albertaGroup.scale.setScalar(1.08);
       this.albertaGroup.position.set(this.state.alberta.x, 0, this.state.alberta.y);
       this.albertaGroup.rotation.y = this.albertaYaw;
       this.scene.add(this.albertaGroup);
@@ -404,6 +506,7 @@ export class AlbertaOverlay {
 
     this.fitCameraToLevel();
     this.rebuildWiresIfNeeded(true);
+    this.rebuildRhythmTable(true);
     this.refreshHud();
     this.refreshTipBox();
   }
@@ -496,9 +599,27 @@ export class AlbertaOverlay {
           this.handleEvents(interactSocket(this.state, socketId));
           this.refreshHud();
         } else if (sock) {
-          this.noticeText = 'Laufe direkt neben diese Steckdose zum Einstecken!';
-          this.noticeTimer = 2.0;
-          this.refreshHud();
+          const dx = sock.accessX - this.state.alberta.x;
+          const dy = sock.accessY - this.state.alberta.y;
+          if (dx !== 0 || dy !== 0) {
+            const dir: Direction =
+              Math.abs(dx) >= Math.abs(dy)
+                ? dx > 0
+                  ? 'right'
+                  : 'left'
+                : dy > 0
+                  ? 'down'
+                  : 'up';
+            this.handleDirection(dir, performance.now());
+          }
+          if (
+            sock.accessX !== this.state.alberta.x ||
+            sock.accessY !== this.state.alberta.y
+          ) {
+            this.noticeText = 'Laufe direkt neben diese Steckdose zum Einstecken!';
+            this.noticeTimer = 2.0;
+            this.refreshHud();
+          }
         }
         return;
       }
@@ -677,9 +798,178 @@ export class AlbertaOverlay {
           this.sounds.play('ui_click');
           this.close(true);
         });
-      } else {
+    } else {
         this.winBannerEl.classList.add('hidden');
       }
+    }
+
+    this.rebuildRhythmTable(false);
+  }
+
+  private rebuildRhythmTable(force: boolean): void {
+    if (!this.rhythmTableEl) return;
+    const displaySteps = getDisplayCycleLength(this.state.level);
+    const wireKey = this.state.wires
+      .map((w) => `${w.fromSocketId}>${w.toSocketId}`)
+      .join(',');
+    const structureKey = `${this.state.level.id}|${displaySteps}|${wireKey}`;
+    if (!force && structureKey === this.lastRhythmStructureKey) return;
+    this.lastRhythmStructureKey = structureKey;
+
+    const compactClass = displaySteps > 12 ? ' is-compact' : '';
+    const rows: string[] = [];
+
+    const secBtns = Array.from({ length: displaySteps }, (_, i) => {
+      return `<button class="alberta-rhythm-sec-btn" type="button" data-beat-col="${i}" data-beat-sec="${i}">${i + 1}</button>`;
+    }).join('');
+    rows.push(`
+      <div class="alberta-rhythm-row is-header">
+        <span class="alberta-rhythm-label">Sek.</span>
+        <div class="alberta-rhythm-cells">${secBtns}</div>
+      </div>
+    `);
+
+    const makeCells = (
+      wave: boolean[] | undefined,
+      colorCss: string,
+      compareWave?: boolean[],
+      unwired?: boolean
+    ) => {
+      return Array.from({ length: displaySteps }, (_, i) => {
+        const on = !unwired && Boolean(wave?.[i]);
+        const mismatch =
+          !unwired && compareWave !== undefined && Boolean(wave?.[i]) !== Boolean(compareWave[i]);
+        const cls = [
+          'alberta-rhythm-cell',
+          on ? 'is-on' : '',
+          mismatch ? 'is-mismatch' : '',
+          unwired ? 'is-unwired' : ''
+        ]
+          .filter(Boolean)
+          .join(' ');
+        return `<span class="${cls}" style="--cell-col:${colorCss}" data-beat-col="${i}" data-beat-sec="${i}"></span>`;
+      }).join('');
+    };
+
+    for (const block of this.state.level.blocks) {
+      if (block.kind !== 'source') continue;
+      const meta = CLOCK_COLORS[block.period];
+      const wave = this.state.blockOutputs[block.id];
+      rows.push(`
+        <div class="alberta-rhythm-row">
+          <span class="alberta-rhythm-label"><i class="alberta-row-swatch" style="background:${meta.css}"></i>💡 ${block.period}s</span>
+          <div class="alberta-rhythm-cells">${makeCells(wave, meta.css)}</div>
+        </div>
+      `);
+    }
+
+    const wiredTargets = new Set(this.state.wires.map((w) => w.toSocketId));
+    for (const block of this.state.level.blocks) {
+      if (block.kind !== 'logic') continue;
+      const in0Wired = wiredTargets.has(`${block.id}:in0`);
+      const in1Wired = wiredTargets.has(`${block.id}:in1`);
+      if (!in0Wired && !in1Wired) continue;
+      const gateName =
+        block.gate === 'AND' ? 'UND' : block.gate === 'OR' ? 'ODER' : 'NICHT';
+      const wave = this.state.blockOutputs[block.id];
+      rows.push(`
+        <div class="alberta-rhythm-row">
+          <span class="alberta-rhythm-label">⚙️ ${gateName}</span>
+          <div class="alberta-rhythm-cells">${makeCells(wave, '#ff922b')}</div>
+        </div>
+      `);
+    }
+
+    const targets = this.state.level.blocks.filter((b) => b.kind === 'target');
+    targets.forEach((block, idx) => {
+      if (block.kind !== 'target') return;
+      const suffix = targets.length > 1 ? ` ${idx + 1}` : '';
+      const matched = Boolean(this.state.targetMatched[block.id]);
+      const inputSockId = `${block.id}:in0`;
+      const isWired = wiredTargets.has(inputSockId);
+      const inWave = this.state.socketWaveforms[inputSockId];
+
+      rows.push(`
+        <div class="alberta-rhythm-row is-target">
+          <span class="alberta-rhythm-label">🎯 Ziel${suffix}${matched ? ' ✅' : ''}</span>
+          <div class="alberta-rhythm-cells">${makeCells(block.targetWaveform, '#51cf66')}</div>
+        </div>
+        <div class="alberta-rhythm-row is-input">
+          <span class="alberta-rhythm-label">🔌 Dein${suffix}</span>
+          <div class="alberta-rhythm-cells">${makeCells(inWave, matched ? '#40c057' : '#ffd43b', block.targetWaveform, !isWired)}</div>
+        </div>
+      `);
+    });
+
+    this.rhythmTableEl.className = `alberta-rhythm-table${compactClass}`;
+    this.rhythmTableEl.style.setProperty('--beat-count', String(displaySteps));
+    this.rhythmTableEl.innerHTML = rows.join('');
+
+    this.rhythmTableEl
+      .querySelectorAll<HTMLElement>('[data-beat-sec]')
+      .forEach((el) => {
+        el.addEventListener('click', () => {
+          const sec = Number(el.dataset.beatSec ?? 0);
+          this.setClockPaused(true);
+          this.clockTime = sec + 0.05;
+          const tickIdx = Math.floor(this.clockTime) % CYCLE_LENGTH;
+          this.syncSignalVisuals(tickIdx);
+          this.renderFrame();
+        });
+      });
+
+    this.lastBeatSec = -1;
+    const tickIdx = Math.floor(this.clockTime) % CYCLE_LENGTH;
+    this.syncRhythmPlayhead(tickIdx, displaySteps);
+  }
+
+  private syncRhythmPlayhead(tickIdx: number, displaySteps: number): void {
+    const col = tickIdx % displaySteps;
+    if (this.rhythmSecBadgeEl) {
+      this.rhythmSecBadgeEl.textContent = `⏱ ${col + 1}s / ${displaySteps}s`;
+    }
+    if (!this.rhythmTableEl || this.lastBeatSec === tickIdx) return;
+    this.lastBeatSec = tickIdx;
+
+    this.rhythmTableEl
+      .querySelectorAll<HTMLElement>('[data-beat-col].is-now')
+      .forEach((el) => el.classList.remove('is-now'));
+    this.rhythmTableEl
+      .querySelectorAll<HTMLElement>(`[data-beat-col="${col}"]`)
+      .forEach((el) => el.classList.add('is-now'));
+  }
+
+  private syncSignalVisuals(tickIdx: number): void {
+    const displaySteps = getDisplayCycleLength(this.state.level);
+    this.syncRhythmPlayhead(tickIdx, displaySteps);
+
+    for (const block of this.state.level.blocks) {
+      if (block.kind === 'source') {
+        const wave = this.state.blockOutputs[block.id];
+        const lit = Boolean(wave?.[tickIdx]);
+        this.sourceVisuals.get(block.id)?.setLit(lit);
+      } else if (block.kind === 'logic') {
+        const wave = this.state.blockOutputs[block.id];
+        const lit = Boolean(wave?.[tickIdx]);
+        this.logicVisuals.get(block.id)?.setOutputLit(lit);
+      } else {
+        const inWave = this.state.socketWaveforms[`${block.id}:in0`];
+        const inputLit = Boolean(inWave?.[tickIdx]);
+        const targetLit = Boolean(block.targetWaveform[tickIdx]);
+        const matched = Boolean(this.state.targetMatched[block.id]);
+        this.targetVisuals.get(block.id)?.setStates(inputLit, targetLit, matched);
+      }
+    }
+
+    this.state.wires.forEach((wire, idx) => {
+      const wave = this.state.socketWaveforms[wire.fromSocketId];
+      const on = Boolean(wave?.[tickIdx]);
+      this.wireVisuals[idx]?.updateSignal(on, this.elapsed);
+    });
+    if (this.activeWireVisual && this.state.activeWire) {
+      const wave = this.state.socketWaveforms[this.state.activeWire.startSocketId];
+      const on = Boolean(wave?.[tickIdx]);
+      this.activeWireVisual.updateSignal(on, this.elapsed);
     }
   }
 
@@ -697,7 +987,9 @@ export class AlbertaOverlay {
     if (!this.active) return;
 
     this.elapsed += dt;
-    this.clockTime += dt;
+    if (!this.clockPaused) {
+      this.clockTime += dt;
+    }
     if (this.noticeTimer > 0) {
       this.noticeTimer = Math.max(0, this.noticeTimer - dt);
       if (this.noticeTimer === 0) {
@@ -738,63 +1030,43 @@ export class AlbertaOverlay {
       this.rebuildWiresIfNeeded(false);
     }
 
-    // Discrete 1-second clock drives all blinking bulbs & glowing wires in real time
+    // Discrete 1-second clock drives all blinking bulbs, wires, and live rhythm table
     const tickIdx = Math.floor(this.clockTime) % CYCLE_LENGTH;
-    if (tickIdx !== this.lastBeatSec && this.beatDotsEl) {
-      this.lastBeatSec = tickIdx;
-      const dots = ([1, 2, 3, 4] as const)
-        .map((p) => {
-          const on = Math.floor(tickIdx / p) % 2 === 0;
-          return `<span class="alberta-beat-dot ${on ? 'on' : ''}" style="--dot-col:${CLOCK_COLORS[p].css}">${p}s</span>`;
-        })
-        .join('');
-      this.beatDotsEl.innerHTML = `<span class="alberta-beat-sec">⏱ ${(tickIdx % 8) + 1}s</span>${dots}`;
-    }
+    this.syncSignalVisuals(tickIdx);
 
-    for (const block of this.state.level.blocks) {
-      if (block.kind === 'source') {
-        const wave = this.state.blockOutputs[block.id];
-        const lit = Boolean(wave?.[tickIdx]);
-        this.sourceVisuals.get(block.id)?.setLit(lit);
-      } else if (block.kind === 'logic') {
-        const wave = this.state.blockOutputs[block.id];
-        const lit = Boolean(wave?.[tickIdx]);
-        this.logicVisuals.get(block.id)?.setOutputLit(lit);
-      } else {
-        const inWave = this.state.socketWaveforms[`${block.id}:in0`];
-        const inputLit = Boolean(inWave?.[tickIdx]);
-        const targetLit = Boolean(block.targetWaveform[tickIdx]);
-        const matched = Boolean(this.state.targetMatched[block.id]);
-        this.targetVisuals.get(block.id)?.setStates(inputLit, targetLit, matched);
+    // Highlight adjacent socket + all compatible target sockets when holding a cable
+    const nearby = getNearbySocketAction(this.state);
+    const highlightId = nearby?.socket.id ?? null;
+    const compatibleIds = new Set<string>();
+    const activeWire = this.state.activeWire;
+    if (activeWire) {
+      const usedSockets = new Set<string>();
+      for (const w of this.state.wires) {
+        usedSockets.add(w.fromSocketId);
+        usedSockets.add(w.toSocketId);
+      }
+      for (const s of this.state.sockets) {
+        if (
+          s.id !== activeWire.startSocketId &&
+          s.role !== activeWire.startRole &&
+          s.blockId !== activeWire.startBlockId &&
+          !usedSockets.has(s.id)
+        ) {
+          compatibleIds.add(s.id);
+        }
       }
     }
 
-    this.state.wires.forEach((wire, idx) => {
-      const wave = this.state.socketWaveforms[wire.fromSocketId];
-      const on = Boolean(wave?.[tickIdx]);
-      this.wireVisuals[idx]?.updateSignal(on, this.elapsed);
-    });
-    if (this.activeWireVisual && this.state.activeWire) {
-      const wave = this.state.socketWaveforms[this.state.activeWire.startSocketId];
-      const on = Boolean(wave?.[tickIdx]);
-      this.activeWireVisual.updateSignal(on, this.elapsed);
-    }
-
-    // Highlight interactable adjacent socket ring clearly
-    const nearby = getNearbySocketAction(this.state);
-    const highlightId = nearby?.socket.id ?? null;
-    const pulse = 0.65 + 0.35 * Math.sin(this.elapsed * 7.5);
+    const ringPulse = 0.5 + 0.5 * Math.sin(this.elapsed * 7.5);
     const updateRingMap = (rings: Map<string, THREE.Mesh>) => {
       for (const [sockId, ring] of rings.entries()) {
-        const ringMat = ring.userData.ringMat as THREE.MeshBasicMaterial | undefined;
-        if (!ringMat) continue;
-        if (sockId === highlightId) {
-          ringMat.opacity = pulse;
-          ring.scale.setScalar(1.22);
-        } else {
-          ringMat.opacity = 0.25;
-          ring.scale.setScalar(1);
-        }
+        const hl: SocketHighlightState =
+          sockId === highlightId
+            ? 'nearby'
+            : compatibleIds.has(sockId)
+              ? 'compatible'
+              : 'idle';
+        setSocketRingVisual(ring, hl, ringPulse);
       }
     };
     for (const s of this.sourceVisuals.values()) updateRingMap(s.socketRings);
@@ -818,6 +1090,7 @@ export class AlbertaOverlay {
     this.clearBoardVisuals();
     if (this.renderer) {
       this.renderer.domElement.removeEventListener('pointerdown', this.boundPointerDown);
+      this.renderer.domElement.removeEventListener('wheel', this.boundWheel);
       this.renderer.dispose();
       if (this.renderer.domElement.parentElement) {
         this.renderer.domElement.parentElement.removeChild(this.renderer.domElement);

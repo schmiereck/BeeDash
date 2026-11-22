@@ -15,6 +15,7 @@ import {
   ALBERTA_LEVELS,
   CYCLE_LENGTH,
   andWaveforms,
+  getDisplayCycleLength,
   makeClockWaveform,
   notWaveform,
   orWaveforms,
@@ -25,7 +26,8 @@ import {
   createSourceCubeMesh,
   createTargetBlockMesh,
   createWireMesh,
-  createWorkbenchFloor
+  createWorkbenchFloor,
+  setSocketRingVisual
 } from '../src/alberta/albertaModels';
 import { Direction } from '../src/game/types';
 import { AssetFactory } from '../src/render/assetFactory';
@@ -256,16 +258,27 @@ describe('Albertas Erfinder-Werkstatt (Logic Circuit Puzzles)', () => {
       const socks = state.sockets.filter((s) => s.blockId === block.id);
       if (block.kind === 'source') {
         const vis = createSourceCubeMesh(block, socks);
+        expect(vis.socketRings.size).toBe(socks.length);
+        for (const ring of vis.socketRings.values()) {
+          setSocketRingVisual(ring, 'idle', 0.5);
+          expect(ring.scale.x).toBe(1);
+          setSocketRingVisual(ring, 'compatible', 0.5);
+          expect(ring.scale.x).toBeGreaterThan(1.1);
+          setSocketRingVisual(ring, 'nearby', 0.5);
+          expect(ring.scale.x).toBeGreaterThan(1.2);
+        }
         expect(() => vis.setLit(true)).not.toThrow();
         expect(() => vis.setLit(false)).not.toThrow();
         vis.ownedMaterials.forEach((m) => m.dispose());
       } else if (block.kind === 'logic') {
         const vis = createLogicBlockMesh(block, socks);
+        expect(vis.socketRings.size).toBe(socks.length);
         expect(() => vis.setOutputLit(true)).not.toThrow();
         expect(() => vis.setOutputLit(false)).not.toThrow();
         vis.ownedMaterials.forEach((m) => m.dispose());
       } else {
         const vis = createTargetBlockMesh(block, socks);
+        expect(vis.socketRings.size).toBe(socks.length);
         expect(() => vis.setStates(true, true, true)).not.toThrow();
         expect(() => vis.setStates(false, false, false)).not.toThrow();
         vis.ownedMaterials.forEach((m) => m.dispose());
@@ -295,5 +308,9 @@ describe('Albertas Erfinder-Werkstatt (Logic Circuit Puzzles)', () => {
     expect(() => animateCharacterWalk(alberta.root, 1.4, false, false, true)).not.toThrow();
     alberta.ownedMaterials.forEach((m) => m.dispose());
     floor.ownedMaterials.forEach((m) => m.dispose());
+  });
+
+  it('computes compact beat display cycle lengths cleanly across all Alberta levels', () => {
+    expect(ALBERTA_LEVELS.map(getDisplayCycleLength)).toEqual([8, 8, 8, 12, 24]);
   });
 });

@@ -47,6 +47,35 @@ export function waveformsEqual(a: boolean[], b: boolean[]): boolean {
   return true;
 }
 
+function gcd(a: number, b: number): number {
+  let x = Math.abs(a);
+  let y = Math.abs(b);
+  while (y !== 0) {
+    const t = x % y;
+    x = y;
+    y = t;
+  }
+  return x || 1;
+}
+
+function lcm(a: number, b: number): number {
+  return (a / gcd(a, b)) * b;
+}
+
+/**
+ * Compact display cycle length for the live beat comparison strip:
+ * full LCM of all source blink periods (2 * period), at least 8s and capped at CYCLE_LENGTH (24s).
+ */
+export function getDisplayCycleLength(level: AlbertaLevelDef): number {
+  let periodLcm = 1;
+  for (const block of level.blocks) {
+    if (block.kind === 'source') {
+      periodLcm = lcm(periodLcm, block.period * 2);
+    }
+  }
+  return Math.max(8, Math.min(CYCLE_LENGTH, periodLcm));
+}
+
 const W1 = makeClockWaveform(1);
 const W2 = makeClockWaveform(2);
 const W3 = makeClockWaveform(3);

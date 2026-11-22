@@ -33,6 +33,47 @@ export interface WireVisual extends AlbertaModelBundle {
   updateSignal: (isOn: boolean, elapsed: number) => void;
 }
 
+export type SocketHighlightState = 'idle' | 'nearby' | 'compatible';
+
+export function setSocketRingVisual(
+  ring: THREE.Mesh,
+  state: SocketHighlightState,
+  pulse: number
+): void {
+  const ringMat = ring.userData?.ringMat as THREE.MeshBasicMaterial | undefined;
+  if (!ringMat) return;
+  const isOutput = Boolean(ring.userData?.isOutput);
+  const chevronMat = ring.userData?.chevronMat as THREE.MeshBasicMaterial | undefined;
+  const clampedPulse = Math.max(0, Math.min(1, pulse));
+
+  if (state === 'nearby') {
+    ringMat.color.setHex(0xffffff);
+    ringMat.opacity = 0.88 + 0.12 * clampedPulse;
+    ring.scale.setScalar(1.24);
+    if (chevronMat) {
+      chevronMat.color.setHex(0xffffff);
+      chevronMat.opacity = 1.0;
+    }
+  } else if (state === 'compatible') {
+    ringMat.color.setHex(0x38d9a9);
+    ringMat.opacity = 0.72 + 0.28 * clampedPulse;
+    ring.scale.setScalar(1.13 + 0.07 * clampedPulse);
+    if (chevronMat) {
+      chevronMat.color.setHex(0x63e6be);
+      chevronMat.opacity = 0.96;
+    }
+  } else {
+    const baseHex = isOutput ? 0xffd43b : 0x74c0fc;
+    ringMat.color.setHex(baseHex);
+    ringMat.opacity = 0.48;
+    ring.scale.setScalar(1.0);
+    if (chevronMat) {
+      chevronMat.color.setHex(baseHex);
+      chevronMat.opacity = 0.85;
+    }
+  }
+}
+
 const SIDE_OFFSET: Record<Direction, { dx: number; dz: number; rotY: number }> = {
   right: { dx: 0.45, dz: 0, rotY: Math.PI / 2 },
   left: { dx: -0.45, dz: 0, rotY: -Math.PI / 2 },
@@ -76,47 +117,95 @@ function addSocketPlugPort(
   portGroup.position.copy(localPos);
   portGroup.rotation.y = SIDE_OFFSET[socket.side].rotY;
 
+  const baseHex = isOutput ? 0xffd43b : 0x74c0fc;
   const collarMat = new THREE.MeshStandardMaterial({
-    color: isOutput ? 0xe0aa2b : 0xb8c5d6,
-    metalness: 0.48,
-    roughness: 0.34
+    color: isOutput ? 0xe6ad24 : 0x7ab8e8,
+    metalness: 0.45,
+    roughness: 0.32
   });
   const holeMat = new THREE.MeshStandardMaterial({
     color: 0x261a10,
     roughness: 0.85
   });
-  const ringMat = new THREE.MeshBasicMaterial({
-    color: isOutput ? 0xffe066 : 0x74c0fc,
+  const floorPadMat = new THREE.MeshBasicMaterial({
+    color: isOutput ? 0x4b3412 : 0x1a3347,
     transparent: true,
-    opacity: 0.32,
+    opacity: 0.74
+  });
+  const ringMat = new THREE.MeshBasicMaterial({
+    color: baseHex,
+    transparent: true,
+    opacity: 0.48,
     side: THREE.DoubleSide
   });
-  ownedMaterials.push(collarMat, holeMat, ringMat);
+  const chevronMat = new THREE.MeshBasicMaterial({
+    color: baseHex,
+    transparent: true,
+    opacity: 0.85,
+    side: THREE.DoubleSide
+  });
+  ownedMaterials.push(collarMat, holeMat, floorPadMat, ringMat, chevronMat);
 
+  // Protruding brass/enamel plug housing
   const collar = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.145, 0.16, 0.08, 16),
+    new THREE.CylinderGeometry(0.16, 0.175, 0.11, 16),
     collarMat
   );
   collar.rotation.x = Math.PI / 2;
+  collar.position.z = 0.02;
   collar.userData.socketId = socket.id;
   portGroup.add(collar);
 
   const hole = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.085, 0.085, 0.09, 14),
+    new THREE.CylinderGeometry(0.09, 0.09, 0.115, 14),
     holeMat
   );
   hole.rotation.x = Math.PI / 2;
-  hole.position.z = 0.008;
+  hole.position.z = 0.025;
   hole.userData.socketId = socket.id;
   portGroup.add(hole);
 
-  const ring = new THREE.Mesh(new THREE.RingGeometry(0.145, 0.215, 22), ringMat);
-  ring.position.z = 0.055;
-  ring.userData.socketId = socket.id;
-  ring.userData.ringMat = ringMat;
-  ring.userData.isOutput = isOutput;
-  portGroup.add(ring);
-  socketRings.set(socket.id, ring);
+  // Top collar cap visible from steep angles (even on the back/up face)
+  const topCap = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.075, 0.14), collarMat);
+  topCap.position.set(0, 0.21, 0.03);
+  topCap.userData.socketId = socket.id;
+  portGroup.add(topCap);
+
+  // Horizontal contact disc + glowing ring + direction chevron on the adjacent walkable floor tile
+  const floorPad = new THREE.Mesh(new THREE.CircleGeometry(0.24, 24), floorPadMat);
+  floorPad.rotation.x = -Math.PI / 2;
+  floorPad.position.set(0, -0.216, 0.30);
+  floorPad.userData.socketId = socket.id;
+  portGroup.add(floorPad);
+
+  const floorRing = new THREE.Mesh(new THREE.RingGeometry(0.19, 0.28, 28), ringMat);
+  floorRing.rotation.x = -Math.PI / 2;
+  floorRing.position.set(0, -0.212, 0.30);
+  floorRing.userData.socketId = socket.id;
+  floorRing.userData.ringMat = ringMat;
+  floorRing.userData.chevronMat = chevronMat;
+  floorRing.userData.isOutput = isOutput;
+  portGroup.add(floorRing);
+  socketRings.set(socket.id, floorRing);
+
+  // Direction chevron: outward (+Z in portGroup) for outputs, inward (-Z) for inputs
+  const arrowShape = new THREE.Shape();
+  if (isOutput) {
+    arrowShape.moveTo(0, -0.11);
+    arrowShape.lineTo(-0.105, 0.06);
+    arrowShape.lineTo(0.105, 0.06);
+  } else {
+    arrowShape.moveTo(0, 0.11);
+    arrowShape.lineTo(-0.105, -0.06);
+    arrowShape.lineTo(0.105, -0.06);
+  }
+  arrowShape.closePath();
+
+  const chevron = new THREE.Mesh(new THREE.ShapeGeometry(arrowShape), chevronMat);
+  chevron.rotation.x = -Math.PI / 2;
+  chevron.position.set(0, -0.210, 0.31);
+  chevron.userData.socketId = socket.id;
+  portGroup.add(chevron);
 
   parent.add(portGroup);
 }
@@ -221,21 +310,29 @@ export function createSourceCubeMesh(
   });
   const capMat = new THREE.MeshStandardMaterial({
     color: colorMeta.hex,
+    emissive: colorMeta.hex,
+    emissiveIntensity: 0.0,
     roughness: 0.42
   });
   const bulbMat = new THREE.MeshStandardMaterial({
     color: colorMeta.hex,
     emissive: colorMeta.hex,
-    emissiveIntensity: 0.08,
+    emissiveIntensity: 0.0,
     roughness: 0.18,
     metalness: 0.05
+  });
+  const haloMat = new THREE.MeshBasicMaterial({
+    color: colorMeta.hex,
+    transparent: true,
+    opacity: 0.0,
+    depthWrite: false
   });
   const baseRingMat = new THREE.MeshStandardMaterial({
     color: 0xd9a738,
     metalness: 0.45,
     roughness: 0.34
   });
-  ownedMaterials.push(housingMat, capMat, bulbMat, baseRingMat);
+  ownedMaterials.push(housingMat, capMat, bulbMat, haloMat, baseRingMat);
 
   const cube = new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.48, 0.84), housingMat);
   cube.position.y = 0.24;
@@ -273,17 +370,21 @@ export function createSourceCubeMesh(
 
   // Bulb collar + bright glass bulb shifted slightly toward back-top so label stays super readable
   const collar = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.18, 0.21, 0.1, 18),
+    new THREE.CylinderGeometry(0.19, 0.22, 0.1, 18),
     baseRingMat
   );
   collar.position.set(0, 0.54, -0.09);
   root.add(collar);
 
-  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.24, 20, 16), bulbMat);
-  bulb.position.set(0, 0.78, -0.09);
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.27, 20, 16), bulbMat);
+  bulb.position.set(0, 0.79, -0.09);
   bulb.scale.set(1, 1.15, 1);
   bulb.castShadow = true;
   root.add(bulb);
+
+  const halo = new THREE.Mesh(new THREE.SphereGeometry(0.41, 18, 14), haloMat);
+  halo.position.copy(bulb.position);
+  root.add(halo);
 
   for (const sock of sockets) {
     const off = SIDE_OFFSET[sock.side];
@@ -304,13 +405,20 @@ export function createSourceCubeMesh(
     socketRings,
     setLit: (lit: boolean) => {
       if (lit) {
-        bulbMat.color.copy(colorObj).lerp(new THREE.Color(0xffffff), 0.35);
-        bulbMat.emissiveIntensity = 1.65;
-        bulb.scale.setScalar(1.06);
+        bulbMat.color.copy(colorObj).lerp(new THREE.Color(0xffffff), 0.45);
+        bulbMat.emissive.copy(colorObj);
+        bulbMat.emissiveIntensity = 1.85;
+        bulb.scale.setScalar(1.08);
+        capMat.emissiveIntensity = 0.55;
+        haloMat.opacity = 0.36;
+        halo.scale.setScalar(1.12);
       } else {
-        bulbMat.color.copy(colorObj).multiplyScalar(0.32);
-        bulbMat.emissiveIntensity = 0.05;
-        bulb.scale.setScalar(0.97);
+        bulbMat.color.copy(colorObj).multiplyScalar(0.18);
+        bulbMat.emissiveIntensity = 0.0;
+        bulb.scale.setScalar(0.94);
+        capMat.emissiveIntensity = 0.0;
+        haloMat.opacity = 0.0;
+        halo.scale.setScalar(0.85);
       }
     }
   };
@@ -333,14 +441,25 @@ export function createLogicBlockMesh(
   const gateCss = `#${gateHex.toString(16).padStart(6, '0')}`;
 
   const bodyMat = new THREE.MeshStandardMaterial({ color: 0x5c422c, roughness: 0.66 });
-  const trimMat = new THREE.MeshStandardMaterial({ color: gateHex, roughness: 0.4 });
+  const trimMat = new THREE.MeshStandardMaterial({
+    color: gateHex,
+    emissive: gateHex,
+    emissiveIntensity: 0.0,
+    roughness: 0.4
+  });
   const ledMat = new THREE.MeshStandardMaterial({
     color: gateHex,
     emissive: gateHex,
-    emissiveIntensity: 0.08,
+    emissiveIntensity: 0.0,
     roughness: 0.2
   });
-  ownedMaterials.push(bodyMat, trimMat, ledMat);
+  const ledHaloMat = new THREE.MeshBasicMaterial({
+    color: gateHex,
+    transparent: true,
+    opacity: 0.0,
+    depthWrite: false
+  });
+  ownedMaterials.push(bodyMat, trimMat, ledMat, ledHaloMat);
 
   const heightZ = isTall ? 1.84 : 0.84;
   const housing = new THREE.Mesh(
@@ -410,9 +529,13 @@ export function createLogicBlockMesh(
   root.add(facePlate);
 
   // Live output status dome near the top-right output corner
-  const led = new THREE.Mesh(new THREE.SphereGeometry(0.14, 14, 12), ledMat);
-  led.position.set(0.22, 0.58, isTall ? -0.52 : -0.18);
+  const led = new THREE.Mesh(new THREE.SphereGeometry(0.16, 14, 12), ledMat);
+  led.position.set(0.22, 0.59, isTall ? -0.52 : -0.18);
   root.add(led);
+
+  const ledHalo = new THREE.Mesh(new THREE.SphereGeometry(0.26, 14, 12), ledHaloMat);
+  ledHalo.position.copy(led.position);
+  root.add(ledHalo);
 
   for (const sock of sockets) {
     const off = SIDE_OFFSET[sock.side];
@@ -436,13 +559,20 @@ export function createLogicBlockMesh(
     socketRings,
     setOutputLit: (lit: boolean) => {
       if (lit) {
-        ledMat.color.copy(baseColor).lerp(new THREE.Color(0xffffff), 0.35);
-        ledMat.emissiveIntensity = 1.65;
-        led.scale.setScalar(1.12);
+        ledMat.color.copy(baseColor).lerp(new THREE.Color(0xffffff), 0.42);
+        ledMat.emissive.copy(baseColor);
+        ledMat.emissiveIntensity = 1.85;
+        led.scale.setScalar(1.16);
+        trimMat.emissiveIntensity = 0.45;
+        ledHaloMat.opacity = 0.34;
+        ledHalo.scale.setScalar(1.1);
       } else {
-        ledMat.color.copy(baseColor).multiplyScalar(0.32);
-        ledMat.emissiveIntensity = 0.06;
-        led.scale.setScalar(0.95);
+        ledMat.color.copy(baseColor).multiplyScalar(0.18);
+        ledMat.emissiveIntensity = 0.0;
+        led.scale.setScalar(0.92);
+        trimMat.emissiveIntensity = 0.0;
+        ledHaloMat.opacity = 0.0;
+        ledHalo.scale.setScalar(0.85);
       }
     }
   };
@@ -460,18 +590,35 @@ export function createTargetBlockMesh(
   const socketRings = new Map<string, THREE.Mesh>();
 
   const housingMat = new THREE.MeshStandardMaterial({ color: 0x4f351f, roughness: 0.64 });
-  const rimMat = new THREE.MeshStandardMaterial({ color: 0xf2c94c, roughness: 0.42 });
+  const rimMat = new THREE.MeshStandardMaterial({
+    color: 0xf2c94c,
+    emissive: 0x40c057,
+    emissiveIntensity: 0.0,
+    roughness: 0.42
+  });
   const inputBulbMat = new THREE.MeshStandardMaterial({
-    color: 0x6b6052,
+    color: 0x342d26,
     emissive: 0xffe066,
     emissiveIntensity: 0,
     roughness: 0.22
   });
   const targetBulbMat = new THREE.MeshStandardMaterial({
-    color: 0xffd43b,
+    color: 0x403314,
     emissive: 0xffc107,
-    emissiveIntensity: 0.1,
+    emissiveIntensity: 0,
     roughness: 0.2
+  });
+  const leftHaloMat = new THREE.MeshBasicMaterial({
+    color: 0xffd43b,
+    transparent: true,
+    opacity: 0.0,
+    depthWrite: false
+  });
+  const rightHaloMat = new THREE.MeshBasicMaterial({
+    color: 0xffc107,
+    transparent: true,
+    opacity: 0.0,
+    depthWrite: false
   });
   const matchBadgeMat = new THREE.MeshStandardMaterial({
     color: 0x6b6052,
@@ -479,7 +626,15 @@ export function createTargetBlockMesh(
     emissiveIntensity: 0,
     roughness: 0.25
   });
-  ownedMaterials.push(housingMat, rimMat, inputBulbMat, targetBulbMat, matchBadgeMat);
+  ownedMaterials.push(
+    housingMat,
+    rimMat,
+    inputBulbMat,
+    targetBulbMat,
+    leftHaloMat,
+    rightHaloMat,
+    matchBadgeMat
+  );
 
   // Two side-by-side cubes (2x1): left bulb controlled by input, right bulb displays target pulse
   const frame = new THREE.Mesh(new THREE.BoxGeometry(1.86, 0.5, 0.86), housingMat);
@@ -523,30 +678,35 @@ export function createTargetBlockMesh(
   root.add(topPlate);
 
   // Left (input-driven) & Right (target reference) light bulbs
-  const collarGeo = new THREE.CylinderGeometry(0.18, 0.21, 0.09, 18);
-  const bulbGeo = new THREE.SphereGeometry(0.23, 20, 16);
+  const collarGeo = new THREE.CylinderGeometry(0.19, 0.22, 0.09, 18);
+  const bulbGeo = new THREE.SphereGeometry(0.26, 20, 16);
+  const haloGeo = new THREE.SphereGeometry(0.39, 18, 14);
 
   const leftCollar = new THREE.Mesh(collarGeo, rimMat);
   leftCollar.position.set(-0.48, 0.55, -0.06);
   const leftBulb = new THREE.Mesh(bulbGeo, inputBulbMat);
-  leftBulb.position.set(-0.48, 0.79, -0.06);
+  leftBulb.position.set(-0.48, 0.80, -0.06);
   leftBulb.scale.set(1, 1.15, 1);
   leftBulb.castShadow = true;
+  const leftHalo = new THREE.Mesh(haloGeo, leftHaloMat);
+  leftHalo.position.copy(leftBulb.position);
 
   const rightCollar = new THREE.Mesh(collarGeo, rimMat);
   rightCollar.position.set(0.48, 0.55, -0.06);
   const rightBulb = new THREE.Mesh(bulbGeo, targetBulbMat);
-  rightBulb.position.set(0.48, 0.79, -0.06);
+  rightBulb.position.set(0.48, 0.80, -0.06);
   rightBulb.scale.set(1, 1.15, 1);
   rightBulb.castShadow = true;
+  const rightHalo = new THREE.Mesh(haloGeo, rightHaloMat);
+  rightHalo.position.copy(rightBulb.position);
 
   const matchGem = new THREE.Mesh(
-    new THREE.OctahedronGeometry(0.14, 0),
+    new THREE.OctahedronGeometry(0.15, 0),
     matchBadgeMat
   );
-  matchGem.position.set(0, 0.66, -0.05);
+  matchGem.position.set(0, 0.67, -0.05);
 
-  root.add(leftCollar, leftBulb, rightCollar, rightBulb, matchGem);
+  root.add(leftCollar, leftBulb, leftHalo, rightCollar, rightBulb, rightHalo, matchGem);
 
   for (const sock of sockets) {
     const off = SIDE_OFFSET[sock.side];
@@ -563,9 +723,9 @@ export function createTargetBlockMesh(
   }
 
   const litYellow = new THREE.Color(0xfff08a);
-  const dimInput = new THREE.Color(0x554c42);
+  const dimInput = new THREE.Color(0x342d26);
   const litGreen = new THREE.Color(0x74f288);
-  const dimTarget = new THREE.Color(0x6e5418);
+  const dimTarget = new THREE.Color(0x403314);
   const offGem = new THREE.Color(0x786c5f);
 
   return {
@@ -577,32 +737,44 @@ export function createTargetBlockMesh(
       if (inputLit) {
         inputBulbMat.color.copy(matched ? litGreen : litYellow);
         inputBulbMat.emissive.setHex(matched ? 0x40c057 : 0xffd43b);
-        inputBulbMat.emissiveIntensity = 1.6;
-        leftBulb.scale.setScalar(1.06);
+        inputBulbMat.emissiveIntensity = 1.85;
+        leftBulb.scale.setScalar(1.08);
+        leftHaloMat.color.setHex(matched ? 0x40c057 : 0xffd43b);
+        leftHaloMat.opacity = 0.36;
+        leftHalo.scale.setScalar(1.12);
       } else {
         inputBulbMat.color.copy(dimInput);
         inputBulbMat.emissiveIntensity = 0;
-        leftBulb.scale.setScalar(0.96);
+        leftBulb.scale.setScalar(0.94);
+        leftHaloMat.opacity = 0;
+        leftHalo.scale.setScalar(0.85);
       }
 
       if (targetLit) {
         targetBulbMat.color.copy(matched ? litGreen : litYellow);
         targetBulbMat.emissive.setHex(matched ? 0x40c057 : 0xffc107);
-        targetBulbMat.emissiveIntensity = 1.6;
-        rightBulb.scale.setScalar(1.06);
+        targetBulbMat.emissiveIntensity = 1.85;
+        rightBulb.scale.setScalar(1.08);
+        rightHaloMat.color.setHex(matched ? 0x40c057 : 0xffc107);
+        rightHaloMat.opacity = 0.36;
+        rightHalo.scale.setScalar(1.12);
       } else {
         targetBulbMat.color.copy(dimTarget);
-        targetBulbMat.emissiveIntensity = 0.04;
-        rightBulb.scale.setScalar(0.96);
+        targetBulbMat.emissiveIntensity = 0;
+        rightBulb.scale.setScalar(0.94);
+        rightHaloMat.opacity = 0;
+        rightHalo.scale.setScalar(0.85);
       }
 
       if (matched) {
         matchBadgeMat.color.setHex(0x8ce99a);
         matchBadgeMat.emissiveIntensity = 1.5;
+        rimMat.emissiveIntensity = 0.35;
         matchGem.rotation.y += 0.03;
       } else {
         matchBadgeMat.color.copy(offGem);
         matchBadgeMat.emissiveIntensity = 0.05;
+        rimMat.emissiveIntensity = 0.0;
       }
     }
   };
