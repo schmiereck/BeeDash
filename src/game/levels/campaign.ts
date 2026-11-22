@@ -33,6 +33,16 @@ export const CAMPAIGN_WORLDS: CampaignWorld[] = [
     personalityTag: 'Lustig & verspielt',
     subtitle: 'Waben 13–24',
     accentColor: '#f46d91'
+  },
+  {
+    number: 3,
+    emoji: '🌸',
+    title: 'Bienenstock 3: Die Schüchternen',
+    shortTitle: 'Die Schüchternen',
+    personality: 'shy',
+    personalityTag: 'Schüchtern & schlau',
+    subtitle: 'Waben 25–36',
+    accentColor: '#e87fa5'
   }
 ];
 
@@ -558,6 +568,276 @@ const RAW_CAMPAIGN_LEVELS: LevelDefinition[] = [
       '#....#.....####G#...#',
       '#..F.#.....#2.F.#B.F#',
       '#####################'
+    ]
+  },
+  {
+    id: 'wabe-25',
+    number: 25,
+    world: 3,
+    title: 'Schüchterne Doppel-Brücke',
+    chapter: 'Kapitel 8: Versteckte Schalter & Portale',
+    mapCoords: { q: 0, r: 0 },
+    intro: 'Willkommen bei den Schüchternen! Schiebe oben den Topf aufs Blüten-Kissen und lass unten einen zweiten Topf von der runden Wabe abrollen!',
+    tip: '1) Schiebe den oberen Honigtopf auf die Druckplatte – das Blüten-Tor öffnet sich. 2) Grabe unten links neben der runden Wabe den Platz frei, damit der mittlere Topf abrollt und dir den Durchgang öffnet!',
+    ascii: [
+      '#############',
+      '#P..O  D#..E#',
+      '#.F.#####...#',
+      '#...O...T.F.#',
+      '#.#.R###.##.#',
+      '#....#F..#..#',
+      '#.F..#..B#..#',
+      '#....#....F.#',
+      '#############'
+    ]
+  },
+  {
+    id: 'wabe-26',
+    number: 26,
+    world: 3,
+    title: 'Portal-Postbote',
+    chapter: 'Kapitel 8: Versteckte Schalter & Portale',
+    mapCoords: { q: 1, r: 0 },
+    intro: 'Zwei verschlossene Blüten-Tore trennen die Kammern! Fliege durchs lila Portal ganz nach rechts hinter den Honigtopf und schiebe ihn nach links!',
+    tip: 'Schlüpfe oben durch die lila Zauberblüte nach rechts, fliege rechts an der Wand hinter den Honigtopf und schiebe ihn nach links auf die Druckplatte. Dadurch gehen gleich beide Blüten-Tore auf!',
+    ascii: [
+      '#############',
+      '#P..1.#...1.#',
+      '#.F...#.F...#',
+      '#.....#D  O.#',
+      '####T########',
+      '#.....#....E#',
+      '#.F...T..F..#',
+      '#..B..#.....#',
+      '#############'
+    ]
+  },
+  {
+    id: 'wabe-27',
+    number: 27,
+    world: 3,
+    title: 'Honigtropfen-Portal',
+    chapter: 'Kapitel 8: Versteckte Schalter & Portale',
+    mapCoords: { q: 1, r: 1 },
+    intro: 'Das Honig-Tor unten bleibt zu, bis der Honig durch die obere Portal-Kammer in die goldene Schale getropft ist!',
+    tip: '1) Fliege durchs lila Portal zur Honigquelle. 2) Grabe senkrecht unterhalb rechts vom See bis zur goldenen Schale frei und weiche seitlich aus, damit der Honig hineintropft. 3) Zurück durchs Portal steht unten das Honig-Tor offen!',
+    ascii: [
+      '#############',
+      '#P..1.#S..1.#',
+      '#.F...#~~...#',
+      '#.....##....#',
+      '##.####.....#',
+      '#..F..#..U..#',
+      '#..B..#######',
+      '#.....G..F.E#',
+      '#############'
+    ]
+  },
+  {
+    id: 'wabe-28',
+    number: 28,
+    world: 3,
+    title: 'Honig hinterm Blüten-Tor',
+    chapter: 'Kapitel 8: Versteckte Schalter & Portale',
+    mapCoords: { q: 0, r: 1 },
+    intro: 'Vorrätiger Honig wartet hoch oben auf einem geschlossenen Blüten-Tor! Grabe erst darunter den Schacht zur Schale, bevor du das Tor öffnest!',
+    tip: '1) Grabe in der Mitte direkt unter dem Blüten-Tor den Schacht bis knapp über der goldenen Schale frei. 2) Schiebe dann links den Honigtopf auf die Druckplatte: Das Blüten-Tor öffnet sich, der Honig tropft in die Schale und öffnet dir trocken das Honig-Tor!',
+    ascii: [
+      '#################',
+      '#P....##.##....E#',
+      '#.F...##~##..F..#',
+      '#.....##~##.....#',
+      '#..O D##T##.....#',
+      '#.######.##.....#',
+      '#..........G....#',
+      '#.F..B.#.#.#.F..#',
+      '#......#U#.#..B.#',
+      '#......###.#....#',
+      '#################'
+    ]
+  },
+  {
+    id: 'wabe-29',
+    number: 29,
+    world: 3,
+    title: 'Doppel-Schalter-Tausch',
+    chapter: 'Kapitel 8: Versteckte Schalter & Portale',
+    mapCoords: { q: -1, r: 1 },
+    intro: 'Zwei Druckplatten in verschiedenen Kammern: eine erreichst du zu Fuß, auf die zweite muss ein Honigtopf von oben punktgenau abrollen!',
+    tip: '1) Schiebe links den ersten Topf auf das obere Blüten-Kissen. 2) Fliege durch das lila Portal in die Mitte, grabe den Fallschacht links der runden Wabe bis zur zweiten Druckplatte frei und weiche links aus – schon rollt der Topf perfekt auf den Schalter!',
+    ascii: [
+      '###################',
+      '#P....#1..O..#...E#',
+      '#.F...#...R..#.F..#',
+      '#..1..#......#....#',
+      '#.....#......#....#',
+      '#.....#......T....#',
+      '#..O D###....#.##.#',
+      '#.#######....#..B.#',
+      '#.......#D#..#....#',
+      '#.F..B..######.F..#',
+      '###################'
+    ]
+  },
+  {
+    id: 'wabe-30',
+    number: 30,
+    world: 3,
+    title: 'Zwei-Wege-Zauber',
+    chapter: 'Kapitel 8: Versteckte Schalter & Portale',
+    mapCoords: { q: -1, r: 0 },
+    intro: 'Lila und türkis im schnellen Doppelpass! Ohne den Schalter oben bleibt das Blüten-Tor in der unteren Mitte für dich versperrt.',
+    tip: '1) Nimm links das lila Portal in die obere Mitte und schiebe dort den Honigtopf auf die Druckplatte. 2) Fliege per lila Portal zurück, schlüpfe unten ins türkise Portal und wandere durch das geöffnete Blüten-Tor zur letzten Blüte und Freundin!',
+    ascii: [
+      '#############',
+      '#P.1#1...#2E#',
+      '#.F.#.F..#..#',
+      '#...#.O D#F.#',
+      '#...######..#',
+      '#..2#....T..#',
+      '#.B.#.F..#B.#',
+      '#...#....#..#',
+      '#############'
+    ]
+  },
+  {
+    id: 'wabe-31',
+    number: 31,
+    world: 3,
+    title: 'Die zwei goldenen Schalen',
+    chapter: 'Kapitel 9: Die große Kniffel-Wabe',
+    mapCoords: { q: 0, r: -1 },
+    intro: 'Gleich zwei goldene Honigschalen müssen voll werden, bevor das große Honig-Tor aufgeht! Räume links den Topf beiseite und senke rechts die zweite Schale ab.',
+    tip: '1) Schiebe in der ersten Honigkammer den Topf nach rechts, grabe direkt darunter zur Schale und öffne den ersten Honigdamm. 2) Grabe rechts unter der zweiten Schale bis auf den Steinboden, damit sie tief hinabsinkt, und öffne dann erst den rechten Honigsee!',
+    ascii: [
+      '###################',
+      '#P...#S...#..S#..E#',
+      '#.F..#~~..#.~~#...#',
+      '#....###..#.###.F.#',
+      '#....#..O #...#...#',
+      '#......#..#U..#...#',
+      '#.F..#..U.#...#.B.#',
+      '#..B.#.####...G...#',
+      '#....#........#...#',
+      '#....#....##..#.F.#',
+      '###################'
+    ]
+  },
+  {
+    id: 'wabe-32',
+    number: 32,
+    world: 3,
+    title: 'Doppel-Wippe im Portal',
+    chapter: 'Kapitel 9: Die große Kniffel-Wabe',
+    mapCoords: { q: 1, r: -1 },
+    intro: 'Auf der rechten Seite wartet hinter dem Blüten-Tor noch eine gefangene Freundin! Aktiviere erst beide Druckplatten, ehe du das türkise Portal nimmst.',
+    tip: '1) Drücke links den ersten Topf auf das Kissen. 2) Schlüpfe per lila Portal in die Mitte und grabe den Schacht links der runden Wabe bis zur zweiten Druckplatte frei, damit der Topf hinabfällt. 3) Durch das türkise Portal steht jetzt das Blüten-Tor offen!',
+    ascii: [
+      '###################',
+      '#P...#1..O..#2...E#',
+      '#.F..#...R..#.F...#',
+      '#..1.#......#.....#',
+      '#....#......#.....#',
+      '#....###.#.####T###',
+      '#..O D##....#.....#',
+      '#.######..2.#..B..#',
+      '#......#D#..#.....#',
+      '#.F..B.######..F..#',
+      '###################'
+    ]
+  },
+  {
+    id: 'wabe-33',
+    number: 33,
+    world: 3,
+    title: 'Die Domino-Schale',
+    chapter: 'Kapitel 9: Die große Kniffel-Wabe',
+    mapCoords: { q: 2, r: -1 },
+    intro: 'Eine echte Kettenreaktion: Die Druckplatte lässt die goldene Schale genau zwischen zwei Honigseen plumpsen – und öffnet so das Honig-Tor zum Portal!',
+    tip: '1) Schiebe den Honigtopf auf die Druckplatte – die goldene Schale fällt mitten ins Honigbad und öffnet unten das Honig-Tor! 2) Dahinter wartet das lila Portal: Rolle drüben den oberen Topf nach rechts von der runden Wabe, um an die geheime Blüte zu kommen.',
+    ascii: [
+      '###################',
+      '#P.....#.F.#1....E#',
+      '#.F......U.#..F...#',
+      '#..O D###T####....#',
+      '#.######   ##FO...#',
+      '#......#   ###R...#',
+      '#.F..B.#~ ~#......#',
+      '#......#####..B...#',
+      '#......G.1.#..F...#',
+      '#......#####......#',
+      '###################'
+    ]
+  },
+  {
+    id: 'wabe-34',
+    number: 34,
+    world: 3,
+    title: 'Doppel-Topf-Aufzug',
+    chapter: 'Kapitel 9: Die große Kniffel-Wabe',
+    mapCoords: { q: 2, r: 0 },
+    intro: 'Zwei gestapelte Honigtöpfe über zwei Blüten-Kissen! Mach zuerst den Weg darunter sauber, dann plumpsen sie im Takt nebeneinander.',
+    tip: '1) Grabe zuerst über der linken Druckplatte ein freies Feld und anschließend die ganze Spalte unter den beiden gestapelten Töpfen bis zur rechten Druckplatte frei! 2) Weiche nach links aus: Der untere Topf landet rechts, der obere rollt von ihm aufs linke Kissen. Danach kannst du in der rechten Kammer die Honigschale füllen!',
+    ascii: [
+      '#####################',
+      '#P...#..O..#S...#..E#',
+      '#.F..#..O..#~~..#.F.#',
+      '#....#.....##...#...#',
+      '#..........#....#...#',
+      '#....#.....T....#...#',
+      '#.F..#.....#....#.B.#',
+      '#..B.#.....#..U.#...#',
+      '#....##DD#.#..###...#',
+      '#....#######..F.G.F.#',
+      '#####################'
+    ]
+  },
+  {
+    id: 'wabe-35',
+    number: 35,
+    world: 3,
+    title: 'Kreuz-und-Quer-Portale',
+    chapter: 'Kapitel 9: Die große Kniffel-Wabe',
+    mapCoords: { q: 2, r: 1 },
+    intro: 'Vier verschlossene Ecken und zwei Portale: Finde erst den Rückweg über die Zauberblüten, um das Honig-Tor zum Koffer zu sprengen!',
+    tip: '1) Über das lila Portal kommst du nach unten rechts: Schiebe dort den Topf auf das Blüten-Kissen. 2) Über das türkise Portal geht es nach oben rechts durch das geöffnete Blüten-Tor zur Honigquelle – fülle die Schale für das Honig-Tor. 3) Durch beide Portale zurück öffnet sich nun die Kammer unten links!',
+    ascii: [
+      '#####################',
+      '#P.......##2...#...S#',
+      '#.F...F..##.F..#..~~#',
+      '#.......1##....T..###',
+      '#........##....#.U..#',
+      '#####G###############',
+      '#..#.....##.........#',
+      '#.#FO....##1.....B..#',
+      '#.B#R..F.##..O D###.#',
+      '#E.......##..###2.F.#',
+      '#####################'
+    ]
+  },
+  {
+    id: 'wabe-36',
+    number: 36,
+    world: 3,
+    title: 'Das große Finale der Schüchternen',
+    chapter: 'Kapitel 9: Die große Kniffel-Wabe',
+    mapCoords: { q: 3, r: 0 },
+    intro: 'Das Meisterstück im 3. Bienenstock! Alle Mechaniken arbeiten hier Hand in Hand bis in die geheime Schatzkammer zum Koffer.',
+    tip: '1) Drücke links die erste Druckplatte und springe durchs lila Portal. 2) Grabe in der oberen Mitte unter der runden Wabe bis zur zweiten Druckplatte, damit der Topf darauf abrollt – das Blüten-Tor öffnet sich! 3) Fülle dahinter rechts die Honigschale für das Honig-Tor, rolle unten den letzten Topf von der runden Wabe ab und fliege durchs türkise Portal in die Schatzkammer!',
+    ascii: [
+      '#######################',
+      '#P....#1.....#.....S..#',
+      '#.F...#...OF.#.F..~~..#',
+      '#.....#...R..#...U##..#',
+      '#..O D#......T........#',
+      '#.#####......#........#',
+      '#.....#.#D#..#####G####',
+      '#..B..#########.......#',
+      '#.F...#..F..##FO......#',
+      '#.....#..B..###R....F.#',
+      '#..1..#E...2#.2....B..#',
+      '#.....#.....#.........#',
+      '#######################'
     ]
   }
 ];
