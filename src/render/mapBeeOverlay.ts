@@ -26,7 +26,7 @@ export class MapBeeOverlay {
   constructor(container: HTMLElement, assets: AssetFactory) {
     this.container = container;
     this.scene = new THREE.Scene();
-    this.camera = new THREE.OrthographicCamera(-175, 365, 175, -175, 0.1, 220);
+    this.camera = new THREE.OrthographicCamera(-235, 425, 265, -215, 0.1, 220);
     this.camera.position.set(0, 0, 120);
     this.camera.lookAt(0, 0, 0);
 

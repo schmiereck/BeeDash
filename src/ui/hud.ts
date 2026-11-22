@@ -38,6 +38,7 @@ export class HUD {
     isMuted: boolean
   ): void {
     const stickySec = Math.ceil(state.stickyRemainingMs / 1000);
+    const dizzySec = Math.ceil(state.dizzyRemainingMs / 1000);
     const key = [
       level.number,
       state.collectedFlowers,
@@ -46,6 +47,7 @@ export class HUD {
       state.totalBees,
       state.collectedHoney,
       stickySec,
+      dizzySec,
       state.filledBowls,
       state.totalBowls,
       state.gatesOpen,
@@ -98,6 +100,14 @@ export class HUD {
               ? `<div class="hud-pill hud-icon-pill hud-sticky-pill" aria-label="Flügel klebrig: ${stickySec} Sekunden">
                   <span class="hud-slot-icon filled">🍯🐝</span>
                   <span class="hud-honey-count">${stickySec}</span>
+                </div>`
+              : ''
+          }
+          ${
+            dizzySec > 0
+              ? `<div class="hud-pill hud-icon-pill hud-dizzy-pill" aria-label="Biene betäubt: ${dizzySec} Sekunden">
+                  <span class="hud-slot-icon filled">💫🐝</span>
+                  <span class="hud-honey-count">${dizzySec}</span>
                 </div>`
               : ''
           }

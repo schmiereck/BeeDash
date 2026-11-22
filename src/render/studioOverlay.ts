@@ -37,6 +37,7 @@ export class StudioOverlay {
   private activePose: CharacterPose = 'wave';
   private toggles: StudioToggleState = {
     sticky: false,
+    dizzy: false,
     bowlFilled: true,
     platePressed: false,
     suitcaseOpen: true
@@ -496,10 +497,13 @@ export class StudioOverlay {
       }).join('');
       const stickyActive = this.toggles.sticky ? 'active' : '';
       const stickyLabel = this.toggles.sticky ? '🍯 Verklebt: An' : '🍯 Verklebt: Aus';
+      const dizzyActive = this.toggles.dizzy ? 'active' : '';
+      const dizzyLabel = this.toggles.dizzy ? '💫 Betäubt: An' : '💫 Betäubt: Aus';
       this.contextBarEl.innerHTML = `
         <span class="studio-context-label">Tricks:</span>
         ${trickBtns}
         <button id="studio-toggle-sticky" class="studio-pill-btn ${stickyActive}" type="button">${stickyLabel}</button>
+        <button id="studio-toggle-dizzy" class="studio-pill-btn ${dizzyActive}" type="button">${dizzyLabel}</button>
       `;
       this.contextBarEl
         .querySelectorAll<HTMLButtonElement>('[data-trick]')
@@ -517,6 +521,18 @@ export class StudioOverlay {
         .querySelector('#studio-toggle-sticky')
         ?.addEventListener('click', () => {
           this.toggles.sticky = !this.toggles.sticky;
+          this.applyImmediateStateUpdate();
+          this.renderContextBar();
+        });
+      this.contextBarEl
+        .querySelector('#studio-toggle-dizzy')
+        ?.addEventListener('click', () => {
+          this.toggles.dizzy = !this.toggles.dizzy;
+          if (this.toggles.dizzy) {
+            this.activeBeeTrick = null;
+            this.animPaused = false;
+            this.syncPlaybackButtons();
+          }
           this.applyImmediateStateUpdate();
           this.renderContextBar();
         });

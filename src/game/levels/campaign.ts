@@ -1,24 +1,38 @@
 import { LevelDefinition } from '../types';
 
+export type HivePersonality = 'diligent' | 'funny' | 'shy' | 'lazy' | 'curious';
+
 export interface CampaignWorld {
   number: number;
   title: string;
+  shortTitle: string;
+  personality: HivePersonality;
+  personalityTag: string;
   emoji: string;
   subtitle: string;
+  accentColor: string;
 }
 
 export const CAMPAIGN_WORLDS: CampaignWorld[] = [
   {
     number: 1,
     emoji: '🍯',
-    title: 'Welt 1: Der gemütliche Bienenstock',
-    subtitle: 'Waben 1–12'
+    title: 'Bienenstock 1: Die Fleißigen',
+    shortTitle: 'Die Fleißigen',
+    personality: 'diligent',
+    personalityTag: 'Fleißig & hilfsbereit',
+    subtitle: 'Waben 1–12',
+    accentColor: '#f5b731'
   },
   {
     number: 2,
-    emoji: '🌸',
-    title: 'Welt 2: Der Sonnenblüten-Garten',
-    subtitle: 'Waben 13–24'
+    emoji: '🎉',
+    title: 'Bienenstock 2: Die Lustigen',
+    shortTitle: 'Die Lustigen',
+    personality: 'funny',
+    personalityTag: 'Lustig & verspielt',
+    subtitle: 'Waben 13–24',
+    accentColor: '#f46d91'
   }
 ];
 

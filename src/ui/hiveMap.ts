@@ -4,6 +4,11 @@ import { Direction, LevelDefinition } from '../game/types';
 import { parseLevelAscii } from '../game/levels/parser';
 import { AssetFactory } from '../render/assetFactory';
 import { MapBeeOverlay } from '../render/mapBeeOverlay';
+import {
+  renderMainSkepBackdropSvg,
+  renderMiniSkepSvg,
+  renderPersonalityBeeSvg
+} from './hiveArtwork';
 import { renderLevelPreview } from './levelPreview';
 
 interface HiveMapCallbacks {
@@ -109,7 +114,7 @@ export class HiveMap {
         <section class="hive-board-card">
           <div id="world-tabs-bar" class="world-tabs-bar"></div>
           <div class="hive-stage">
-            <svg id="hive-svg" class="hive-svg" viewBox="-175 -175 540 350" aria-label="Sechseck-Bienenstock-Karte"></svg>
+            <svg id="hive-svg" class="hive-svg" viewBox="-235 -265 660 480" aria-label="Sechseck-Bienenstock-Karte"></svg>
             <div id="map-bee-layer" class="map-bee-layer"></div>
           </div>
           <div class="map-legend">
@@ -195,23 +200,33 @@ export class HiveMap {
           const isActive = w.number === this.activeWorldNumber;
           return `
             <button
-              class="world-tab ${isActive ? 'active' : ''} ${wUnlocked ? '' : 'locked'}"
+              class="hive-skep-tab ${isActive ? 'active' : ''} ${wUnlocked ? '' : 'locked'}"
               data-world="${w.number}"
               type="button"
+              title="${w.title} (${w.personalityTag})"
             >
-              <span>${w.emoji} ${w.title}</span>
+              <span class="hive-skep-bee">${renderPersonalityBeeSvg(w.personality, { size: 54 })}</span>
+              ${renderMiniSkepSvg({
+                uid: `tab-${w.number}`,
+                accentColor: w.accentColor,
+                active: isActive,
+                locked: !wUnlocked
+              })}
+              <span class="hive-skep-name">${w.shortTitle}</span>
               <span class="world-tab-badge">${wUnlocked ? `${wDone}/${wLevels.length}` : '🔒'}</span>
             </button>
           `;
         })
         .join('');
 
-      this.worldTabsEl.querySelectorAll<HTMLButtonElement>('.world-tab').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const worldNum = Number(btn.dataset.world);
-          this.selectWorld(worldNum);
+      this.worldTabsEl
+        .querySelectorAll<HTMLButtonElement>('.hive-skep-tab')
+        .forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const worldNum = Number(btn.dataset.world);
+            this.selectWorld(worldNum);
+          });
         });
-      });
     }
 
     const worldPositions = this.positions.filter(
@@ -276,9 +291,13 @@ export class HiveMap {
       })
       .join('');
 
+    const activeWorld =
+      this.worlds.find((w) => w.number === this.activeWorldNumber) ?? this.worlds[0];
+
     if (this.svgEl) {
       this.svgEl.innerHTML = `
-        <polyline points="${trailPoints}" fill="none" stroke="#b87624" stroke-width="5" stroke-dasharray="8 8" stroke-linecap="round" stroke-linejoin="round" opacity="0.55" />
+        ${activeWorld ? renderMainSkepBackdropSvg(activeWorld) : ''}
+        <polyline points="${trailPoints}" fill="none" stroke="#995b17" stroke-width="5" stroke-dasharray="8 8" stroke-linecap="round" stroke-linejoin="round" opacity="0.65" />
         ${hexCellsSvg}
       `;
     }
@@ -349,7 +368,7 @@ export class HiveMap {
     } else {
       const first = worldLevels[0];
       this.selectedLevelNumber = first.number;
-      this.lockedNotice = `Schließe zuerst Wabe ${Math.min(this.progress.unlockedUpTo, this.levels.length)} ab, um diese Welt freizuschalten!`;
+      this.lockedNotice = `Schließe zuerst Wabe ${Math.min(this.progress.unlockedUpTo, this.levels.length)} ab, um diesen Bienenstock freizuschalten!`;
     }
     this.render(this.progress, this.isMuted);
   }

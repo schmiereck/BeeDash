@@ -8,9 +8,17 @@ import {
   SuitcaseSceneRuntime
 } from './suitcaseScenes';
 
+export interface SuitcaseStageAction {
+  label: string;
+  className?: string;
+  onClick: () => void;
+}
+
 export interface SuitcaseStageOptions {
   eyebrow?: string;
   continueLabel?: string;
+  rewardSummary?: string;
+  extraActions?: SuitcaseStageAction[];
 }
 
 export interface SuitcaseStageCallbacks {
@@ -84,8 +92,8 @@ export class SuitcaseStageOverlay {
   private backdropEl: HTMLElement | null = null;
   private captionBarEl: HTMLElement | null = null;
   private actionsEl: HTMLElement | null = null;
-  private replayBtnEl: HTMLButtonElement | null = null;
-  private continueBtnEl: HTMLButtonElement | null = null;
+  private actionButtons: HTMLButtonElement[] = [];
+  private actionHandlers: Array<() => void> = [];
 
   constructor(root: HTMLElement, assets: AssetFactory) {
     this.root = root;
@@ -116,6 +124,16 @@ export class SuitcaseStageOverlay {
     const eyebrowText =
       options?.eyebrow ?? `${sceneDef.emoji} In Frau Honigs Koffer • Wabe ${level.number}`;
     const continueLabel = options?.continueLabel ?? '🎉 Weiter';
+    const extraActions = options?.extraActions ?? [];
+    const rewardHtml = options?.rewardSummary
+      ? `<div class="suitcase-reward-pill">${options.rewardSummary}</div>`
+      : '';
+    const extraBtnsHtml = extraActions
+      .map(
+        (act, idx) =>
+          `<button id="suitcase-extra-btn-${idx}" class="btn ${act.className ?? 'btn-secondary'}" type="button">${act.label}</button>`
+      )
+      .join('');
 
     this.root.innerHTML = `
       <div id="suitcase-backdrop" class="suitcase-backdrop"></div>
@@ -124,9 +142,11 @@ export class SuitcaseStageOverlay {
         <div class="suitcase-eyebrow">${eyebrowText}</div>
         <div class="suitcase-scene-title">${sceneDef.title}</div>
         <div class="suitcase-scene-caption">${sceneDef.caption}</div>
+        ${rewardHtml}
       </div>
       <div id="suitcase-actions" class="suitcase-actions">
         <button id="suitcase-replay-btn" class="btn btn-secondary" type="button">🔄 Nochmal öffnen</button>
+        ${extraBtnsHtml}
         <button id="suitcase-continue-btn" class="btn btn-green" type="button">${continueLabel}</button>
       </div>
     `;
@@ -136,11 +156,45 @@ export class SuitcaseStageOverlay {
     const canvasWrap = this.root.querySelector('#suitcase-canvas-wrap') as HTMLElement;
     this.captionBarEl = this.root.querySelector('#suitcase-caption-bar');
     this.actionsEl = this.root.querySelector('#suitcase-actions');
-    this.replayBtnEl = this.root.querySelector('#suitcase-replay-btn');
-    this.continueBtnEl = this.root.querySelector('#suitcase-continue-btn');
 
-    this.replayBtnEl?.addEventListener('click', () => this.replay());
-    this.continueBtnEl?.addEventListener('click', () => this.finish());
+    const replayBtn = this.root.querySelector('#suitcase-replay-btn') as HTMLButtonElement | null;
+    const continueBtn = this.root.querySelector(
+      '#suitcase-continue-btn'
+    ) as HTMLButtonElement | null;
+
+    this.actionButtons = [];
+    this.actionHandlers = [];
+
+    if (replayBtn) {
+      const handler = () => this.replay();
+      replayBtn.addEventListener('click', handler);
+      this.actionButtons.push(replayBtn);
+      this.actionHandlers.push(handler);
+    }
+
+    extraActions.forEach((act, idx) => {
+      const btn = this.root.querySelector(
+        `#suitcase-extra-btn-${idx}`
+      ) as HTMLButtonElement | null;
+      if (btn) {
+        const handler = () => {
+          this.stop();
+          act.onClick();
+        };
+        btn.addEventListener('click', handler);
+        this.actionButtons.push(btn);
+        this.actionHandlers.push(handler);
+      }
+    });
+
+    if (continueBtn) {
+      const handler = () => this.finish();
+      continueBtn.addEventListener('click', handler);
+      this.actionButtons.push(continueBtn);
+      this.actionHandlers.push(handler);
+    }
+
+    this.selectedBtnIndex = Math.max(0, this.actionButtons.length - 1);
     this.updateSelectionVisual();
 
     this.initScene(canvasWrap, sceneDef);
@@ -453,7 +507,7 @@ export class SuitcaseStageOverlay {
     this.lidSoundPlayed = false;
     this.captionBarEl?.classList.remove('visible');
     this.actionsEl?.classList.remove('visible');
-    this.selectedBtnIndex = 1;
+    this.selectedBtnIndex = Math.max(0, this.actionButtons.length - 1);
     this.updateSelectionVisual();
     this.callbacks?.onZoomStart?.();
     this.applyAnimationState();
@@ -463,22 +517,19 @@ export class SuitcaseStageOverlay {
   }
 
   moveSelection(dir: Direction): void {
-    if (!this.active) return;
+    const len = this.actionButtons.length;
+    if (!this.active || len === 0) return;
     if (dir === 'left' || dir === 'up') {
-      this.selectedBtnIndex = (this.selectedBtnIndex + 1) % 2;
+      this.selectedBtnIndex = (this.selectedBtnIndex - 1 + len) % len;
     } else if (dir === 'right' || dir === 'down') {
-      this.selectedBtnIndex = (this.selectedBtnIndex + 1) % 2;
+      this.selectedBtnIndex = (this.selectedBtnIndex + 1) % len;
     }
     this.updateSelectionVisual();
   }
 
   confirmSelection(): void {
     if (!this.active || this.elapsed < 1.4) return;
-    if (this.selectedBtnIndex === 0) {
-      this.replay();
-    } else {
-      this.finish();
-    }
+    this.actionHandlers[this.selectedBtnIndex]?.();
   }
 
   finish(): void {
@@ -489,8 +540,9 @@ export class SuitcaseStageOverlay {
   }
 
   private updateSelectionVisual(): void {
-    this.replayBtnEl?.classList.toggle('dialog-btn-selected', this.selectedBtnIndex === 0);
-    this.continueBtnEl?.classList.toggle('dialog-btn-selected', this.selectedBtnIndex === 1);
+    this.actionButtons.forEach((btn, idx) => {
+      btn.classList.toggle('dialog-btn-selected', idx === this.selectedBtnIndex);
+    });
   }
 
   update(dt: number): void {
@@ -673,8 +725,8 @@ export class SuitcaseStageOverlay {
     this.backdropEl = null;
     this.captionBarEl = null;
     this.actionsEl = null;
-    this.replayBtnEl = null;
-    this.continueBtnEl = null;
+    this.actionButtons = [];
+    this.actionHandlers = [];
     this.scene = null;
     this.camera = null;
 

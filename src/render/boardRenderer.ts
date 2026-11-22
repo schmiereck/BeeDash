@@ -69,6 +69,9 @@ export class BoardRenderer {
   private stickyDripTimer = 0;
   private stickyShakeTimer = 0;
   private wasSticky = false;
+  private dizzyAnimTime = 0;
+  private dizzyStarTimer = 0;
+  private wasDizzy = false;
   private portalPopTimer = 0;
 
   constructor(assets: AssetFactory) {
@@ -276,6 +279,11 @@ export class BoardRenderer {
           this.particles.emitStickyDrip(ev.x, -ev.y);
           this.stickyShakeTimer = 0.28;
           break;
+        case 'bonk_pot':
+          this.particles.emitBonkStars(ev.x, ev.y);
+          this.dizzyAnimTime = 0;
+          this.dizzyStarTimer = 0;
+          break;
         case 'bowl_fill':
           this.particles.emitBowlFill(ev.x, ev.y);
           break;
@@ -378,18 +386,59 @@ export class BoardRenderer {
       }
 
       const isSticky = state.stickyRemainingMs > 0;
+      const isDizzy = state.dizzyRemainingMs > 0;
       if (this.stickyShakeTimer > 0) {
         this.stickyShakeTimer = Math.max(0, this.stickyShakeTimer - dt);
         rollZ +=
           Math.sin(this.elapsed * 42) * 0.24 * (this.stickyShakeTimer / 0.35);
       }
 
-      this.beeMesh.position.set(this.beeWorldX, this.beeWorldY, hoverZ);
-      this.beeMesh.rotation.y = this.currentBeeYaw + yawOffset;
-      this.beeMesh.rotation.x = this.currentBeePitch + trickPitchOffset;
-      this.beeMesh.rotation.z = rollZ;
+      let renderX = this.beeWorldX;
+      let renderY = this.beeWorldY;
+      let renderZ = hoverZ;
+      let renderYaw = this.currentBeeYaw + yawOffset;
+      let renderPitch = this.currentBeePitch + trickPitchOffset;
+      let renderRoll = rollZ;
 
-      const baseWingSpeed = trickActive ? 62 : isFlying ? 50 : 14;
+      if (isDizzy) {
+        this.dizzyAnimTime += dt;
+        const w = 2.65;
+        const phase = this.dizzyAnimTime * w;
+        const figX = Math.sin(phase) * 0.44;
+        const figY = Math.sin(phase * 2) * 0.22;
+        const figZ = 0.42 + Math.cos(phase * 2) * 0.08;
+        const vx = Math.cos(phase) * 0.44 * w;
+        const vy = Math.cos(phase * 2) * 0.44 * w;
+        const dizzyYaw = Math.atan2(vx, -vy);
+
+        renderX = this.beeWorldX + figX;
+        renderY = this.beeWorldY + figY;
+        renderZ = figZ;
+        renderYaw = dizzyYaw;
+        renderPitch = 0.16;
+        renderRoll = rollZ + Math.sin(phase * 3) * 0.34;
+        this.currentBeeYaw = dizzyYaw;
+
+        this.dizzyStarTimer += dt;
+        if (this.dizzyStarTimer >= 0.065) {
+          this.dizzyStarTimer = 0;
+          this.particles.emitDizzyStar(renderX, renderY, renderZ);
+        }
+      } else {
+        this.dizzyStarTimer = 0;
+        if (this.wasDizzy) {
+          this.dizzyAnimTime = 0;
+          this.particles.emitTrickSparkle(this.beeWorldX, this.beeWorldY);
+        }
+      }
+      this.wasDizzy = isDizzy;
+
+      this.beeMesh.position.set(renderX, renderY, renderZ);
+      this.beeMesh.rotation.y = renderYaw;
+      this.beeMesh.rotation.x = renderPitch;
+      this.beeMesh.rotation.z = renderRoll;
+
+      const baseWingSpeed = isDizzy ? 38 : trickActive ? 62 : isFlying ? 50 : 14;
       const targetWingSpeed = isSticky ? baseWingSpeed * 0.65 : baseWingSpeed;
       this.currentWingSpeed = THREE.MathUtils.lerp(
         this.currentWingSpeed,
@@ -397,7 +446,7 @@ export class BoardRenderer {
         Math.min(1, dt * 14)
       );
       this.wingPhase += dt * this.currentWingSpeed;
-      const wingAmp = trickActive ? 0.52 : isFlying ? 0.48 : 0.26;
+      const wingAmp = isDizzy ? 0.42 : trickActive ? 0.52 : isFlying ? 0.48 : 0.26;
 
       const { leftWing, rightWing, stickyGroup } = this.beeMesh.userData as {
         leftWing?: THREE.Object3D;
@@ -1276,6 +1325,9 @@ export class BoardRenderer {
     this.stickyDripTimer = 0;
     this.stickyShakeTimer = 0;
     this.wasSticky = false;
+    this.dizzyAnimTime = 0;
+    this.dizzyStarTimer = 0;
+    this.wasDizzy = false;
     this.portalPopTimer = 0;
 
     this.particles.clear();

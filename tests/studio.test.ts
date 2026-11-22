@@ -72,6 +72,7 @@ describe('BeeDash 3D-Atelier Katalog & Builder', () => {
             pose: pose.id,
             toggles: {
               sticky: false,
+              dizzy: false,
               bowlFilled: false,
               platePressed: false,
               suitcaseOpen: false
@@ -86,6 +87,7 @@ describe('BeeDash 3D-Atelier Katalog & Builder', () => {
             pose: pose.id,
             toggles: {
               sticky: true,
+              dizzy: true,
               bowlFilled: true,
               platePressed: true,
               suitcaseOpen: true
@@ -104,6 +106,7 @@ describe('BeeDash 3D-Atelier Katalog & Builder', () => {
                 pose: 'wave',
                 toggles: {
                   sticky: true,
+                  dizzy: false,
                   bowlFilled: true,
                   platePressed: true,
                   suitcaseOpen: true

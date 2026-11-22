@@ -13,6 +13,7 @@ export type StudioBeeTrick = 'flip' | 'spin' | 'waggle';
 
 export interface StudioToggleState {
   sticky: boolean;
+  dizzy: boolean;
   bowlFilled: boolean;
   platePressed: boolean;
   suitcaseOpen: boolean;
@@ -458,6 +459,33 @@ export function buildStudioStageItem(
     bee.position.set(0, 0.78, 0);
     root.add(bee);
 
+    // Trailing 5-pointed stars shown behind the bee during dizzy figure-8 stun mode
+    const starShape = new THREE.Shape();
+    for (let i = 0; i < 10; i++) {
+      const r = i % 2 === 0 ? 0.095 : 0.042;
+      const a = (i / 10) * Math.PI * 2 + Math.PI / 2;
+      if (i === 0) starShape.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+      else starShape.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+    }
+    starShape.closePath();
+    const starGeo = new THREE.ShapeGeometry(starShape);
+    const starMat = new THREE.MeshBasicMaterial({
+      color: 0xffe066,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.92
+    });
+    ownedMaterials.push(starMat);
+    const dizzyStarGroup = new THREE.Group();
+    dizzyStarGroup.visible = false;
+    const trailStars: THREE.Mesh[] = [];
+    for (let i = 0; i < 6; i++) {
+      const st = new THREE.Mesh(starGeo, starMat);
+      dizzyStarGroup.add(st);
+      trailStars.push(st);
+    }
+    root.add(dizzyStarGroup);
+
     let wingPhase = 0;
     const isCustomGlb = hasCustomModelAncestor(bee);
 
@@ -472,17 +500,46 @@ export function buildStudioStageItem(
       accentColor: 0xffd56e,
       update: (elapsed, dt, opts) => {
         const isSticky = opts.toggles.sticky;
+        const isDizzy = opts.toggles.dizzy;
         const trick = opts.beeTrick;
         const p = trick ? THREE.MathUtils.clamp(trick.progress, 0, 1) : 0;
         const ease = p * p * (3 - 2 * p);
 
         let posX = 0;
         let posY = 0.78 + Math.sin(elapsed * 3.4) * 0.05;
+        let posZ = 0;
         let rotX = 0.08;
         let rotY = 0;
         let rotZ = 0;
         let scaleY = 1.45;
         let scaleXZ = 1.45;
+
+        if (isDizzy) {
+          const w = 2.65;
+          const phase = elapsed * w;
+          posX = Math.sin(phase) * 0.44;
+          posZ = Math.sin(phase * 2) * 0.24;
+          posY = 0.9 + Math.cos(phase * 2) * 0.08;
+          rotY = Math.atan2(Math.cos(phase) * 0.44 * w, Math.cos(phase * 2) * 0.48 * w);
+          rotX = 0.14;
+          rotZ = Math.sin(phase * 3) * 0.34;
+
+          dizzyStarGroup.visible = true;
+          trailStars.forEach((st, idx) => {
+            const lagPhase = Math.max(0, elapsed - (idx + 1) * 0.11) * w;
+            st.position.set(
+              Math.sin(lagPhase) * 0.44,
+              0.94 + Math.cos(lagPhase * 2) * 0.08 + idx * 0.025,
+              Math.sin(lagPhase * 2) * 0.24
+            );
+            st.rotation.y = elapsed * 2.5 + idx;
+            st.rotation.z = elapsed * 4.0 + idx * 0.9;
+            const s = (1 - idx * 0.11) * (0.85 + Math.sin(elapsed * 6 + idx) * 0.18);
+            st.scale.setScalar(Math.max(0.25, s));
+          });
+        } else {
+          dizzyStarGroup.visible = false;
+        }
 
         if (trick) {
           if (trick.kind === 'flip') {
@@ -503,13 +560,13 @@ export function buildStudioStageItem(
           }
         }
 
-        bee.position.set(posX, posY, 0);
+        bee.position.set(posX, posY, posZ);
         bee.rotation.set(rotX, rotY, rotZ);
         bee.scale.set(scaleXZ, scaleY, scaleXZ);
 
-        const baseWingSpeed = trick ? 52 : 22;
+        const baseWingSpeed = isDizzy ? 38 : trick ? 52 : 22;
         wingPhase += dt * (isSticky ? baseWingSpeed * 0.62 : baseWingSpeed);
-        const wingAmp = trick ? 0.56 : 0.44;
+        const wingAmp = isDizzy ? 0.44 : trick ? 0.56 : 0.44;
         const { leftWing, rightWing, stickyGroup } = bee.userData as {
           leftWing?: THREE.Object3D;
           rightWing?: THREE.Object3D;

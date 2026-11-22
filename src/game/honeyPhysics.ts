@@ -5,6 +5,7 @@ export const HONEY_DROP_INTERVAL = 2;
 export const HONEY_SPREAD_INTERVAL = 4;
 export const MAX_HONEY_SPREAD = 4;
 export const STICKY_DURATION_MS = 10_000;
+export const DIZZY_DURATION_MS = 15_000;
 
 export function makeCell(
   id: number,
@@ -42,6 +43,87 @@ function hasHoneyAbove(state: GameState, x: number, y: number): boolean {
   if (y <= 0) return false;
   const above = state.grid[y - 1][x].type;
   return above === 'honey_liquid' || above === 'honey_source';
+}
+
+function hasFallingPotAbove(state: GameState, x: number, y: number): boolean {
+  if (y <= 0) return false;
+  const above = state.grid[y - 1][x];
+  return (
+    above.type === 'honeypot' &&
+    (above.fallState === 'falling' || above.fallState === 'wobbling')
+  );
+}
+
+export function applyBonkPotHit(
+  state: GameState,
+  events: GameEvent[],
+  potCol: number
+): boolean {
+  state.dizzyRemainingMs = DIZZY_DURATION_MS;
+  events.push({ type: 'bonk_pot', x: state.player.x, y: state.player.y });
+
+  const candidates: Array<{ x: number; y: number }> = [];
+  const lastDx = Math.abs(state.player.lastMoveFromX - state.player.x);
+  const lastDy = Math.abs(state.player.lastMoveFromY - state.player.y);
+  if (lastDx + lastDy === 1) {
+    candidates.push({ x: state.player.lastMoveFromX, y: state.player.lastMoveFromY });
+  }
+
+  for (const [dx, dy] of [
+    [-1, 0],
+    [1, 0],
+    [0, 1],
+    [0, -1]
+  ]) {
+    const nx = state.player.x + dx;
+    const ny = state.player.y + dy;
+    if (!candidates.some((c) => c.x === nx && c.y === ny)) {
+      candidates.push({ x: nx, y: ny });
+    }
+  }
+
+  let retreat: { x: number; y: number } | null = null;
+  for (const c of candidates) {
+    if (
+      c.x !== potCol &&
+      isSafeRetreat(state, c.x, c.y) &&
+      !hasFallingPotAbove(state, c.x, c.y)
+    ) {
+      retreat = c;
+      break;
+    }
+  }
+
+  if (!retreat) {
+    for (const c of candidates) {
+      if (isSafeRetreat(state, c.x, c.y) && !hasFallingPotAbove(state, c.x, c.y)) {
+        retreat = c;
+        break;
+      }
+    }
+  }
+
+  if (!retreat) {
+    for (const c of candidates) {
+      if (isSafeRetreat(state, c.x, c.y)) {
+        retreat = c;
+        break;
+      }
+    }
+  }
+
+  if (retreat) {
+    state.player.prevX = state.player.x;
+    state.player.prevY = state.player.y;
+    state.player.x = retreat.x;
+    state.player.y = retreat.y;
+    state.player.lastMoveFromX = retreat.x;
+    state.player.lastMoveFromY = retreat.y;
+    state.player.movedThisTick = true;
+    return true;
+  }
+
+  return false;
 }
 
 export function applyStickyHoneyHit(state: GameState, events: GameEvent[]): boolean {
@@ -227,11 +309,21 @@ function stepHoneyPots(
 
       if (isPlayerBelow) {
         if (cell.fallState === 'falling') {
-          moveCell(state, x, y, x, y + 1);
-          state.status = 'lost';
-          state.failReason = 'bonk_pot';
-          events.push({ type: 'bonk_pot', x, y: y + 1 });
-          return;
+          const vacated = applyBonkPotHit(state, events, x);
+          if (vacated) {
+            moveCell(state, x, y, x, y + 1);
+            const underNew = state.grid[y + 2]?.[x];
+            const playerBelowNew = state.player.x === x && state.player.y === y + 2;
+            if (!underNew || underNew.type !== 'empty' || playerBelowNew) {
+              cell.fallState = 'resting';
+              cell.wobbleTicks = 0;
+              events.push({ type: 'pot_land', x, y: y + 1 });
+            }
+          } else {
+            cell.fallState = 'resting';
+            cell.wobbleTicks = 0;
+          }
+          continue;
         }
         // Classic Boulder-Dash safety: standing below a resting pot supports it safely
         cell.fallState = 'resting';

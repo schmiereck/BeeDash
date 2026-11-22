@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { createGameState, stepGame, willDirectionChangeState } from '../src/game/engine';
-import { POT_WOBBLE_TICKS } from '../src/game/honeyPhysics';
+import {
+  createGameState,
+  stepGame,
+  tickDizzyTimer,
+  willDirectionChangeState
+} from '../src/game/engine';
+import { DIZZY_DURATION_MS, POT_WOBBLE_TICKS } from '../src/game/honeyPhysics';
 import { LevelDefinition } from '../src/game/types';
 import { UndoStack } from '../src/game/undoStack';
 
@@ -134,7 +139,7 @@ describe('GameEngine & HoneyPot physics', () => {
     expect(state.grid[2][2].type).toBe('honeypot');
   });
 
-  it('triggers bonk_pot only when an already falling pot hits the player from above', () => {
+  it('stuns the bee for 15 seconds on bonk_pot without ending the game, then recovers cleanly', () => {
     const level = makeTestLevel([
       '#####',
       '# O #',
@@ -144,7 +149,7 @@ describe('GameEngine & HoneyPot physics', () => {
       '#####'
     ]);
 
-    // Case A: stay directly underneath after moving down -> falling pot hits player
+    // Case A: stay directly underneath after moving down -> falling pot hits player, stuns for 15s, dodges sideways
     const risky = createGameState(level);
     stepGame(risky, 'right'); // under pot at (2,2), safe
     const evMoveDown = stepGame(risky, 'down'); // move to (2,3) -> (2,1) wobbles
@@ -157,17 +162,59 @@ describe('GameEngine & HoneyPot physics', () => {
     expect(risky.grid[2][2].fallState).toBe('falling');
 
     const evHit = stepGame(risky, null); // falling pot hits player at (2,3)
-    expect(risky.status).toBe('lost');
-    expect(risky.failReason).toBe('bonk_pot');
+    expect(risky.status).toBe('playing');
+    expect(risky.failReason).toBeNull();
+    expect(risky.dizzyRemainingMs).toBe(DIZZY_DURATION_MS);
+    expect(DIZZY_DURATION_MS).toBe(15_000);
     expect(evHit.some((e) => e.type === 'bonk_pot')).toBe(true);
+    // Retreated sideways out of column 2 so pot could land cleanly at (2,3)
+    expect(risky.player.x).not.toBe(2);
+    expect(risky.grid[3][2].type).toBe('honeypot');
 
-    // Case B: step aside while pot wobbles/falls -> safe!
+    // While dizzy, player movement is ignored
+    const prevX = risky.player.x;
+    const prevY = risky.player.y;
+    expect(willDirectionChangeState(risky, 'up')).toBe(false);
+    stepGame(risky, 'up');
+    expect(risky.player.x).toBe(prevX);
+    expect(risky.player.y).toBe(prevY);
+
+    // Tick halfway -> still dizzy
+    expect(tickDizzyTimer(risky, 7_000)).toBe(false);
+    expect(risky.dizzyRemainingMs).toBe(8_000);
+
+    // Finish full 15s -> recovered and movable again!
+    expect(tickDizzyTimer(risky, 8_000)).toBe(true);
+    expect(risky.dizzyRemainingMs).toBe(0);
+    expect(willDirectionChangeState(risky, 'up')).toBe(true);
+
+    // Case B: tight 1-tile shaft with no empty retreat -> still stuns safely and pot stops above player
+    const tightLevel = makeTestLevel([
+      '###',
+      '#O#',
+      '# #',
+      '#P#',
+      '#E#',
+      '###'
+    ]);
+    const tight = createGameState(tightLevel);
+    stepGame(tight, null); // wobble
+    stepGame(tight, null); // falls to y=2
+    const evTight = stepGame(tight, null); // hits player at y=3
+    expect(evTight.some((e) => e.type === 'bonk_pot')).toBe(true);
+    expect(tight.status).toBe('playing');
+    expect(tight.dizzyRemainingMs).toBe(DIZZY_DURATION_MS);
+    expect(tight.grid[2][1].type).toBe('honeypot');
+    expect(tight.grid[2][1].fallState).toBe('resting');
+
+    // Case C: step aside while pot wobbles -> no bonk
     const safe = createGameState(level);
     stepGame(safe, 'right');
     stepGame(safe, 'down');
     stepGame(safe, 'right');
     stepGame(safe, null);
     expect(safe.status).toBe('playing');
+    expect(safe.dizzyRemainingMs).toBe(0);
     expect(safe.grid[3][2].type).toBe('honeypot');
   });
 

@@ -3,6 +3,7 @@ import { SoundManager } from './audio/soundManager';
 import {
   createGameState,
   stepGame,
+  tickDizzyTimer,
   tickStickyTimer,
   willDirectionChangeState
 } from './game/engine';
@@ -394,7 +395,11 @@ async function bootstrap(): Promise<void> {
     }
 
     if (activeScreen === 'game' && currentLevel) {
-      if (action === 'confirm' && gameState?.status === 'playing') {
+      if (
+        action === 'confirm' &&
+        gameState?.status === 'playing' &&
+        gameState.dizzyRemainingMs <= 0
+      ) {
         const trickIdx = boardRenderer.triggerBeeTrick();
         if (trickIdx !== null) {
           const trickSounds = ['trick_1', 'trick_2', 'trick_3'] as const;
@@ -480,6 +485,9 @@ async function bootstrap(): Promise<void> {
         if (tickStickyTimer(gameState, dt * 1000)) {
           sounds.play('sticky_clean');
         }
+        if (tickDizzyTimer(gameState, dt * 1000)) {
+          sounds.play('sticky_clean');
+        }
         if (dir !== null) {
           hideToast();
         }
@@ -524,25 +532,53 @@ async function bootstrap(): Promise<void> {
             const exitX = gameState.exitPos.x;
             const exitY = gameState.exitPos.y;
 
+            const rewardParts = ['🌸'.repeat(stars)];
+            if (wonHoney > 0) {
+              rewardParts.push(`🍯 ${wonHoney}`);
+            }
+            if (newlyUnlockedNumber !== null) {
+              rewardParts.push(`✨ Wabe ${newlyUnlockedNumber} freigeschaltet!`);
+            }
+            const rewardSummary = rewardParts.join(' • ');
+
             outcomeTimer = window.setTimeout(() => {
               hideToast();
               hud.updateExitArrow(false, null);
               const originNdc = cameraRig.projectTileToNdc(exitX, exitY);
-              suitcaseStage.start(wonLevel, originNdc, {
-                onZoomStart: () => sounds.play('suitcase_zoom'),
-                onLidOpen: () => sounds.play('suitcase_open'),
-                onContinue: () => {
-                  sounds.play('ui_click');
-                  dialogs.showWin(
-                    wonLevel,
-                    stars,
-                    wonHoney,
-                    newlyUnlockedNumber,
-                    () => returnToMap(newlyUnlockedNumber ?? wonLevel.number),
-                    () => startLevel(wonLevel)
-                  );
+              suitcaseStage.start(
+                wonLevel,
+                originNdc,
+                {
+                  onZoomStart: () => sounds.play('suitcase_zoom'),
+                  onLidOpen: () => sounds.play('suitcase_open'),
+                  onContinue: () => {
+                    sounds.play('ui_click');
+                    if (nextLevel) {
+                      startLevel(nextLevel);
+                    } else {
+                      returnToMap(wonLevel.number);
+                    }
+                  }
+                },
+                {
+                  rewardSummary,
+                  continueLabel: nextLevel
+                    ? `➡️ Weiter zu Wabe ${nextLevel.number}`
+                    : '🗺️ Zur Bienenstock-Karte',
+                  extraActions: nextLevel
+                    ? [
+                        {
+                          label: '🗺️ Zur Bienenstock-Karte',
+                          className: 'btn-secondary',
+                          onClick: () => {
+                            sounds.play('ui_click');
+                            returnToMap(newlyUnlockedNumber ?? wonLevel.number);
+                          }
+                        }
+                      ]
+                    : undefined
                 }
-              });
+              );
             }, 380);
           } else if (gameState.status === 'lost' && !outcomeHandled) {
             outcomeHandled = true;

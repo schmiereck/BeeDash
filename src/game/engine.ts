@@ -45,6 +45,7 @@ export function createGameState(level: LevelDefinition): GameState {
     totalBees: parsed.totalBees,
     collectedHoney: 0,
     stickyRemainingMs: 0,
+    dizzyRemainingMs: 0,
     filledBowls: 0,
     totalBowls: parsed.totalBowls,
     gatesOpen: parsed.totalBowls === 0,
@@ -72,6 +73,14 @@ export function tickStickyTimer(state: GameState, dtMs: number): boolean {
   return state.stickyRemainingMs === 0;
 }
 
+export function tickDizzyTimer(state: GameState, dtMs: number): boolean {
+  if (state.status !== 'playing' || state.dizzyRemainingMs <= 0) {
+    return false;
+  }
+  state.dizzyRemainingMs = Math.max(0, state.dizzyRemainingMs - dtMs);
+  return state.dizzyRemainingMs === 0;
+}
+
 export function cloneGameState(state: GameState): GameState {
   return {
     ...state,
@@ -87,7 +96,7 @@ export function cloneGameState(state: GameState): GameState {
 }
 
 export function willDirectionChangeState(state: GameState, dir: Direction): boolean {
-  if (state.status !== 'playing') return false;
+  if (state.status !== 'playing' || state.dizzyRemainingMs > 0) return false;
   const { dx, dy } = DIR_DELTA[dir];
   const tx = state.player.x + dx;
   const ty = state.player.y + dy;
@@ -209,9 +218,10 @@ export function stepGame(state: GameState, dir: Direction | null): GameEvent[] {
   const events: GameEvent[] = [];
   const pushedThisTick = new Set<number>();
 
-  if (dir !== null) {
-    state.player.facing = dir;
-    const { dx, dy } = DIR_DELTA[dir];
+  const moveDir = state.dizzyRemainingMs > 0 ? null : dir;
+  if (moveDir !== null) {
+    state.player.facing = moveDir;
+    const { dx, dy } = DIR_DELTA[moveDir];
     const tx = state.player.x + dx;
     const ty = state.player.y + dy;
 
@@ -264,7 +274,7 @@ export function stepGame(state: GameState, dir: Direction | null): GameEvent[] {
           events.push({ type: 'exit_locked', x: tx, y: ty });
         }
       } else if (target.type === 'honeypot') {
-        if ((dir === 'left' || dir === 'right') && target.fallState === 'resting') {
+        if ((moveDir === 'left' || moveDir === 'right') && target.fallState === 'resting') {
           const bx = tx + dx;
           if (bx > 0 && bx < state.width - 1 && state.grid[ty][bx].type === 'empty') {
             target.prevX = tx;
@@ -285,7 +295,7 @@ export function stepGame(state: GameState, dir: Direction | null): GameEvent[] {
           }
         }
       } else if (target.type === 'honey_liquid') {
-        if (dir === 'up') {
+        if (moveDir === 'up') {
           applyStickyHoneyHit(state, events);
         } else {
           state.player.lastMoveFromX = state.player.prevX;

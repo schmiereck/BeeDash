@@ -475,8 +475,9 @@ export class SoundManager {
         this.playTone(ctx, 190, 140, 0.09, 'square', 0.05, 0.08);
         break;
       case 'bonk_pot':
-        this.playTone(ctx, 320, 120, 0.22, 'triangle', 0.22, 0);
-        this.playTone(ctx, 220, 290, 0.16, 'sine', 0.14, 0.12);
+        this.playTone(ctx, 320, 120, 0.2, 'triangle', 0.2, 0);
+        this.playTone(ctx, 587.33, 659.25, 0.1, 'sine', 0.11, 0.14);
+        this.playTone(ctx, 880, 1046.5, 0.12, 'sine', 0.1, 0.24);
         break;
       case 'sticky_wings':
         this.playTone(ctx, 380, 180, 0.26, 'sine', 0.18, 0);

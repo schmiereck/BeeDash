@@ -13,6 +13,25 @@ interface Particle {
 
 const PARTICLE_GEO = new THREE.SphereGeometry(0.085, 8, 6);
 
+function createStarShapeGeometry(): THREE.ShapeGeometry {
+  const shape = new THREE.Shape();
+  const points = 5;
+  const outerR = 0.115;
+  const innerR = 0.05;
+  for (let i = 0; i < points * 2; i++) {
+    const r = i % 2 === 0 ? outerR : innerR;
+    const angle = (i / (points * 2)) * Math.PI * 2 + Math.PI / 2;
+    const x = Math.cos(angle) * r;
+    const y = Math.sin(angle) * r;
+    if (i === 0) shape.moveTo(x, y);
+    else shape.lineTo(x, y);
+  }
+  shape.closePath();
+  return new THREE.ShapeGeometry(shape);
+}
+
+const STAR_PARTICLE_GEO = createStarShapeGeometry();
+
 export class ParticleSystem {
   readonly group = new THREE.Group();
   private particles: Particle[] = [];
@@ -151,6 +170,81 @@ export class ParticleSystem {
         ? [0xc77dff, 0xb975ff, 0xffe066, 0xffffff]
         : [0x38d9d2, 0x80ffdb, 0xffe066, 0xffffff];
     this.spawnBurst(gridX, -gridY, 0.36, 16, colors, 3.2, 0.4, 0.72, 1.05);
+  }
+
+  private spawnStar(
+    x: number,
+    y: number,
+    z: number,
+    color: number,
+    vx: number,
+    vy: number,
+    vz: number,
+    gravity: number,
+    maxAge: number,
+    scale: number
+  ): void {
+    const mat = new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 1,
+      side: THREE.DoubleSide
+    });
+    const mesh = new THREE.Mesh(STAR_PARTICLE_GEO, mat);
+    mesh.position.set(x, y, z);
+    mesh.rotation.z = Math.random() * Math.PI * 2;
+    mesh.scale.setScalar(scale);
+
+    this.group.add(mesh);
+    this.particles.push({
+      mesh,
+      vx,
+      vy,
+      vz,
+      age: 0,
+      maxAge,
+      gravity,
+      spin: (Math.random() >= 0.5 ? 1 : -1) * (4.5 + Math.random() * 4)
+    });
+  }
+
+  emitBonkStars(gridX: number, gridY: number): void {
+    const colors = [0xffe066, 0xfff6c2, 0xffd166, 0xff9ec4];
+    for (let i = 0; i < 12; i++) {
+      const ang = (i / 12) * Math.PI * 2 + Math.random() * 0.25;
+      const spd = 2.0 + Math.random() * 1.4;
+      this.spawnStar(
+        gridX,
+        -gridY,
+        0.48,
+        colors[i % colors.length],
+        Math.cos(ang) * spd,
+        Math.sin(ang) * spd + 0.6,
+        0.9 + Math.random() * 1.1,
+        1.4,
+        0.82,
+        0.95 + Math.random() * 0.35
+      );
+    }
+  }
+
+  emitDizzyStar(worldX: number, worldY: number, worldZ: number): void {
+    const colors = [0xffe066, 0xfff6c8, 0xffc845, 0xffb3d1];
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const jitterX = (Math.random() - 0.5) * 0.14;
+    const jitterY = (Math.random() - 0.5) * 0.14;
+    this.spawnStar(
+      worldX + jitterX,
+      worldY + jitterY,
+      worldZ + 0.08,
+      color,
+      (Math.random() - 0.5) * 0.25,
+      0.18 + Math.random() * 0.22,
+      0.28 + Math.random() * 0.25,
+      -0.35,
+      0.85,
+      0.85 + Math.random() * 0.45
+    );
   }
 
   update(dt: number): void {

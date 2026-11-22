@@ -116,6 +116,7 @@ export interface GameState {
   totalBees: number;
   collectedHoney: number;
   stickyRemainingMs: number;
+  dizzyRemainingMs: number;
   filledBowls: number;
   totalBowls: number;
   gatesOpen: boolean;
