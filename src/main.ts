@@ -1,4 +1,5 @@
 import './style.css';
+import { AlbertaOverlay } from './alberta/albertaOverlay';
 import { SoundManager } from './audio/soundManager';
 import {
   createGameState,
@@ -49,6 +50,7 @@ async function bootstrap(): Promise<void> {
   const sleepLockRootEl = document.getElementById('sleep-lock-root')!;
   const suitcaseStageRootEl = document.getElementById('suitcase-stage-root')!;
   const studioRootEl = document.getElementById('studio-root')!;
+  const albertaRootEl = document.getElementById('alberta-root')!;
 
   const assets = new AssetFactory();
   await assets.init();
@@ -172,12 +174,31 @@ async function bootstrap(): Promise<void> {
     studioOverlay.open();
   };
 
+  const albertaOverlay = new AlbertaOverlay(albertaRootEl, assets, sounds, {
+    onClose: () => {
+      if (activeScreen === 'map' && !sleepOverlay.isActive()) {
+        sounds.setMapMusicActive(true);
+      }
+      refreshMap();
+    }
+  });
+
+  const openAlberta = () => {
+    settingsOpen = false;
+    dialogs.close();
+    hideToast();
+    sounds.play('ui_click');
+    sounds.setMapMusicActive(false);
+    albertaOverlay.open(0);
+  };
+
   const enterSleepLock = () => {
     if (sleepOverlay.isActive()) return;
     settingsOpen = false;
     studioOpen = false;
     clearTimers();
     studioOverlay.close(false);
+    albertaOverlay.close(false);
     suitcaseStage.stop();
     dialogs.close();
     hideToast();
@@ -273,6 +294,9 @@ async function bootstrap(): Promise<void> {
     onStartLevel: (level) => {
       startLevel(level);
     },
+    onOpenAlberta: () => {
+      openAlberta();
+    },
     onOpenCalibration: () => {
       sounds.play('ui_click');
       dialogs.showCalibration(input, () => {
@@ -354,6 +378,8 @@ async function bootstrap(): Promise<void> {
       suitcaseStage.moveSelection(dir);
     } else if (studioOverlay.isActive()) {
       return;
+    } else if (albertaOverlay.isActive()) {
+      albertaOverlay.handleDirection(dir, performance.now());
     } else if (activeScreen === 'map') {
       hiveMap.moveSelection(dir);
     }
@@ -384,6 +410,11 @@ async function bootstrap(): Promise<void> {
       if (action === 'menu') {
         studioOverlay.close();
       }
+      return;
+    }
+
+    if (albertaOverlay.isActive()) {
+      albertaOverlay.handleAction(action);
       return;
     }
 
@@ -424,9 +455,14 @@ async function bootstrap(): Promise<void> {
   const openStudioViaUrl =
     new URLSearchParams(window.location.search).get('studio') === '1' ||
     window.location.hash === '#studio';
+  const openAlbertaViaUrl =
+    new URLSearchParams(window.location.search).get('alberta') === '1' ||
+    window.location.hash === '#alberta';
 
   if (openStudioViaUrl) {
     openStudio();
+  } else if (openAlbertaViaUrl) {
+    openAlberta();
   } else {
     sounds.setMapMusicActive(true);
 
@@ -467,7 +503,14 @@ async function bootstrap(): Promise<void> {
 
     const dir = input.poll(nowMs);
 
-    if (activeScreen === 'map' && !studioOverlay.isActive()) {
+    if (albertaOverlay.isActive()) {
+      if (dir !== null) {
+        albertaOverlay.handleDirection(dir, nowMs);
+      }
+      albertaOverlay.update(dt);
+    }
+
+    if (activeScreen === 'map' && !studioOverlay.isActive() && !albertaOverlay.isActive()) {
       hiveMap.updateAnimation(dt);
     }
 
@@ -476,6 +519,7 @@ async function bootstrap(): Promise<void> {
         dialogs.isOpen() ||
         suitcaseStage.isActive() ||
         studioOverlay.isActive() ||
+        albertaOverlay.isActive() ||
         gameState.status !== 'playing';
       let tickProgress = 1;
 

@@ -405,6 +405,21 @@ export const STUDIO_ITEMS: StudioItemSpec[] = [
     characterKey: 'child_boy'
   },
   {
+    id: 'alberta',
+    category: 'characters',
+    emoji: '🥽',
+    label: 'Alberta (Erfinderin)',
+    description: 'Schlaue kleine Tüftlerin aus der Frau-Honig-Welt mit großer Messing-Fliegerbrille und Latzhose.',
+    defaultRadius: 3.1,
+    minRadius: 1.5,
+    maxRadius: 6.0,
+    targetY: 0.72,
+    defaultYaw: 0.38,
+    defaultPitch: 0.25,
+    pedestalRadius: 1.35,
+    characterKey: 'alberta'
+  },
+  {
     id: 'bee',
     category: 'characters',
     emoji: '🐝',

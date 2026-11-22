@@ -1375,3 +1375,244 @@ body {
     width: 100%;
   }
 }
+
+/* Albertas Erfinder-Werkstatt */
+.btn-alberta {
+  background: linear-gradient(180deg, #a5e2ff 0%, #58b4eb 100%);
+  color: #1c2c3d;
+  border-color: var(--hive-wood);
+}
+
+.alberta-root {
+  position: fixed;
+  inset: 0;
+  z-index: 44;
+  background: linear-gradient(180deg, #fff8e7 0%, #f5dfb0 100%);
+  display: flex;
+  flex-direction: column;
+}
+
+.alberta-root.hidden {
+  display: none;
+}
+
+.alberta-shell {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.alberta-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem 0.9rem;
+  padding: 0.6rem 0.95rem;
+  background: rgba(255, 248, 231, 0.96);
+  border-bottom: 3px solid var(--hive-wood);
+  box-shadow: 0 3px 10px rgba(74, 50, 31, 0.14);
+}
+
+.alberta-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.alberta-brand h2 {
+  margin: 0;
+  font-size: 1.18rem;
+  font-weight: 900;
+  color: var(--hive-wood);
+}
+
+.alberta-subtitle {
+  font-size: 0.84rem;
+  font-weight: 800;
+  color: #35678e;
+}
+
+.alberta-level-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.alberta-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.38rem;
+}
+
+.alberta-legend-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 0.95rem;
+  background: rgba(255, 241, 207, 0.92);
+  border-bottom: 2px solid rgba(74, 50, 31, 0.22);
+}
+
+.alberta-clock-badges,
+.alberta-beat-dots {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.42rem;
+}
+
+.alberta-clock-chip {
+  padding: 0.2rem 0.58rem;
+  border-radius: 999px;
+  background: #fffdf6;
+  border: 2px solid var(--chip-col);
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--hive-wood);
+}
+
+.alberta-beat-sec {
+  font-size: 0.8rem;
+  font-weight: 900;
+  color: var(--hive-wood);
+  margin-right: 0.2rem;
+}
+
+.alberta-beat-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  padding: 0.15rem 0.42rem;
+  border-radius: 999px;
+  border: 2px solid var(--dot-col);
+  font-size: 0.75rem;
+  font-weight: 900;
+  color: var(--hive-wood);
+  background: rgba(255, 255, 255, 0.5);
+  transition: transform 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+}
+
+.alberta-beat-dot.on {
+  background: var(--dot-col);
+  color: #1f140a;
+  box-shadow: 0 0 10px var(--dot-col);
+  transform: scale(1.08);
+}
+
+.alberta-viewport {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.alberta-canvas-wrap {
+  width: 100%;
+  height: 100%;
+}
+
+.alberta-canvas-wrap canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.alberta-tip-box {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  max-width: min(92vw, 390px);
+  padding: 0.75rem 0.95rem;
+  border-radius: 18px;
+  background: rgba(255, 252, 240, 0.96);
+  border: 3px solid var(--hive-wood);
+  box-shadow: 0 6px 18px rgba(74, 50, 31, 0.22);
+  font-size: 0.9rem;
+  line-height: 1.42;
+  color: var(--hive-wood);
+}
+
+.alberta-tip-box.hidden {
+  display: none;
+}
+
+.alberta-win-banner {
+  position: absolute;
+  left: 50%;
+  bottom: 0.9rem;
+  transform: translateX(-50%);
+  width: min(92vw, 480px);
+  padding: 0.9rem 1.15rem;
+  border-radius: 22px;
+  background: rgba(255, 250, 232, 0.97);
+  border: 4px solid #40c057;
+  box-shadow: 0 8px 24px rgba(40, 95, 45, 0.28);
+  text-align: center;
+  animation: popIn 0.2s ease-out;
+}
+
+.alberta-win-banner.hidden {
+  display: none;
+}
+
+.alberta-win-title {
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: #256d32;
+}
+
+.alberta-win-sub {
+  margin: 0.25rem 0 0.65rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--hive-wood);
+}
+
+.alberta-win-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.55rem;
+}
+
+.alberta-bottom-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.55rem 0.95rem;
+  background: rgba(255, 248, 231, 0.96);
+  border-top: 3px solid var(--hive-wood);
+}
+
+.alberta-prompt-btn {
+  border: 2.5px solid var(--hive-wood);
+  border-radius: 999px;
+  padding: 0.42rem 0.95rem;
+  background: #fff5db;
+  color: var(--hive-wood);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: default;
+}
+
+.alberta-prompt-btn.ready {
+  background: linear-gradient(180deg, #9ce699 0%, #5cc458 100%);
+  color: #163b14;
+  cursor: pointer;
+  animation: pulseGlow 1.5s infinite;
+}
+
+.alberta-controls-hint {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--hive-wood-light);
+}

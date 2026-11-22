@@ -77,9 +77,9 @@ describe('Suitcase 3D Magic Scenes', () => {
     }
   });
 
-  it('builds Frau Honig and both children with feet grounded near y=0 and supports all poses', () => {
+  it('builds Frau Honig, Alberta, and both children with feet grounded near y=0 and supports all poses', () => {
     const assets = new AssetFactory();
-    const keys: CharacterKey[] = ['frau_honig', 'child_girl', 'child_boy'];
+    const keys: CharacterKey[] = ['frau_honig', 'child_girl', 'child_boy', 'alberta'];
     const poses: CharacterPose[] = [
       'wave',
       'cheer',
@@ -114,9 +114,9 @@ describe('Suitcase 3D Magic Scenes', () => {
     }
   });
 
-  it('keeps hair geometry clear of the central face window for Frau Honig and both children', () => {
+  it('keeps hair geometry clear of the central face window for Frau Honig, Alberta, and both children', () => {
     const assets = new AssetFactory();
-    const keys: CharacterKey[] = ['frau_honig', 'child_girl', 'child_boy'];
+    const keys: CharacterKey[] = ['frau_honig', 'child_girl', 'child_boy', 'alberta'];
 
     for (const key of keys) {
       const char = createStageCharacter(assets, key);

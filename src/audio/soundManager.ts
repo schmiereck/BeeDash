@@ -11,7 +11,11 @@ export type SoundKey =
   | 'trick_3'
   | 'sticky_clean'
   | 'suitcase_zoom'
-  | 'suitcase_open';
+  | 'suitcase_open'
+  | 'wire_plug'
+  | 'wire_unplug'
+  | 'wire_step'
+  | 'target_match';
 
 const MUTE_STORAGE_KEY = 'beedash_muted_v1';
 
@@ -283,7 +287,8 @@ export class SoundManager {
       key === 'honey_drip' ||
       key === 'bee_move' ||
       key === 'sticky_blocked' ||
-      key === 'pest_dig'
+      key === 'pest_dig' ||
+      key === 'wire_step'
     ) {
       const prev = this.lastPlayedAt.get(key) ?? 0;
       if (nowMs - prev < 140) return;
@@ -560,6 +565,21 @@ export class SoundManager {
         });
         break;
       }
+      case 'wire_plug':
+        this.playTone(ctx, 460, 740, 0.09, 'triangle', 0.14, 0);
+        this.playTone(ctx, 740, 920, 0.07, 'sine', 0.1, 0.05);
+        break;
+      case 'wire_unplug':
+        this.playTone(ctx, 560, 290, 0.1, 'triangle', 0.12, 0);
+        break;
+      case 'wire_step':
+        this.playTone(ctx, 210, 260, 0.045, 'sine', 0.05, 0);
+        break;
+      case 'target_match':
+        this.playTone(ctx, 523.25, 523.25, 0.1, 'sine', 0.13, 0);
+        this.playTone(ctx, 659.25, 659.25, 0.1, 'sine', 0.13, 0.07);
+        this.playTone(ctx, 783.99, 1046.5, 0.2, 'triangle', 0.15, 0.14);
+        break;
     }
   }
 }

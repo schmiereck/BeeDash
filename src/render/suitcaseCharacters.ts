@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { AssetFactory } from './assetFactory';
 
-export type CharacterKey = 'frau_honig' | 'child_girl' | 'child_boy';
+export type CharacterKey = 'frau_honig' | 'child_girl' | 'child_boy' | 'alberta';
 
 export type CharacterPose =
   | 'wave'
@@ -596,6 +596,196 @@ function buildChildBoyRig(owned: THREE.Material[]): { root: THREE.Group; rig: Ch
   };
 }
 
+function buildAlbertaRig(owned: THREE.Material[]): { root: THREE.Group; rig: CharacterRig } {
+  const root = new THREE.Group();
+  const bodyGroup = new THREE.Group();
+  root.add(bodyGroup);
+
+  const skinMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0xf9d5b4, roughness: 0.62 })
+  );
+  const bootMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0x5c361c, roughness: 0.56 })
+  );
+  const overallMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0x3b7fa8, roughness: 0.62 })
+  );
+  const shirtMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0xffe482, roughness: 0.58 })
+  );
+  const scarfMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0xf26449, roughness: 0.65 })
+  );
+  const hairMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0x8f4324, roughness: 0.66 })
+  );
+  const strapMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0x6b3e21, roughness: 0.65 })
+  );
+  const brassMat = trackMat(
+    owned,
+    new THREE.MeshStandardMaterial({ color: 0xe6b52e, metalness: 0.58, roughness: 0.28 })
+  );
+  const goggleLensMat = trackMat(
+    owned,
+    new THREE.MeshPhysicalMaterial({
+      color: 0x7fd8ff,
+      emissive: 0x2a7fb8,
+      emissiveIntensity: 0.16,
+      roughness: 0.12,
+      metalness: 0.1,
+      transparent: true,
+      opacity: 0.85,
+      clearcoat: 1.0
+    })
+  );
+
+  const leftLegPivot = new THREE.Group();
+  leftLegPivot.position.set(-0.068, 0.34, 0);
+  addLegLimb(leftLegPivot, overallMat, bootMat);
+  bodyGroup.add(leftLegPivot);
+
+  const rightLegPivot = new THREE.Group();
+  rightLegPivot.position.set(0.068, 0.34, 0);
+  addLegLimb(rightLegPivot, overallMat, bootMat);
+  bodyGroup.add(rightLegPivot);
+
+  // Cozy inventor dungarees / overalls over bright yellow shirt
+  const shirtChest = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.106, 0.124, 0.25, 16),
+    shirtMat
+  );
+  shirtChest.position.set(0, 0.515, 0);
+  shirtChest.scale.z = 0.86;
+  shirtChest.castShadow = true;
+  bodyGroup.add(shirtChest);
+
+  const pants = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.122, 0.138, 0.17, 16),
+    overallMat
+  );
+  pants.position.set(0, 0.39, 0);
+  pants.scale.z = 0.9;
+  pants.castShadow = true;
+  bodyGroup.add(pants);
+
+  const frontBib = new THREE.Mesh(new THREE.BoxGeometry(0.135, 0.145, 0.045), overallMat);
+  frontBib.position.set(0, 0.52, 0.095);
+  bodyGroup.add(frontBib);
+
+  const toolPocket = new THREE.Mesh(new THREE.BoxGeometry(0.088, 0.068, 0.02), scarfMat);
+  toolPocket.position.set(0, 0.495, 0.118);
+  bodyGroup.add(toolPocket);
+
+  for (const bx of [-0.048, 0.048]) {
+    const strap = new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.15, 0.18), overallMat);
+    strap.position.set(bx, 0.56, 0);
+    bodyGroup.add(strap);
+
+    const btn = new THREE.Mesh(new THREE.SphereGeometry(0.015, 8, 8), brassMat);
+    btn.position.set(bx, 0.565, 0.118);
+    bodyGroup.add(btn);
+  }
+
+  // Little inventor collar kerchief
+  const neckScarf = new THREE.Mesh(new THREE.TorusGeometry(0.092, 0.024, 8, 16), scarfMat);
+  neckScarf.rotation.x = Math.PI / 2;
+  neckScarf.position.set(0, 0.625, 0.005);
+  bodyGroup.add(neckScarf);
+
+  const leftArmPivot = new THREE.Group();
+  leftArmPivot.position.set(-0.132, 0.6, 0);
+  addArmLimb(leftArmPivot, shirtMat, skinMat);
+  bodyGroup.add(leftArmPivot);
+
+  const rightArmPivot = new THREE.Group();
+  rightArmPivot.position.set(0.132, 0.6, 0);
+  addArmLimb(rightArmPivot, shirtMat, skinMat);
+  bodyGroup.add(rightArmPivot);
+
+  const headPivot = new THREE.Group();
+  headPivot.position.set(0, 0.66, 0);
+  createCuteFace(headPivot, owned, skinMat, 0.135);
+
+  const hairCap = new THREE.Mesh(
+    new THREE.SphereGeometry(0.143, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.56),
+    hairMat
+  );
+  hairCap.position.set(0, 0.142, -0.016);
+  hairCap.rotation.x = -0.44;
+  hairCap.userData.isHair = true;
+  headPivot.add(hairCap);
+
+  // Side curls + playful inventor bun at back
+  for (const side of [-1, 1]) {
+    const sideCurl = new THREE.Mesh(new THREE.SphereGeometry(0.044, 10, 8), hairMat);
+    sideCurl.position.set(side * 0.125, 0.135, -0.045);
+    sideCurl.userData.isHair = true;
+    headPivot.add(sideCurl);
+  }
+  const backBun = new THREE.Mesh(new THREE.SphereGeometry(0.056, 10, 8), hairMat);
+  backBun.position.set(0, 0.18, -0.145);
+  backBun.userData.isHair = true;
+  headPivot.add(backBun);
+
+  // Signature aviator goggles (Fliegerbrille) worn proudly on forehead!
+  const goggleStrap = new THREE.Mesh(
+    new THREE.TorusGeometry(0.142, 0.015, 8, 24),
+    strapMat
+  );
+  goggleStrap.rotation.x = Math.PI / 2 - 0.34;
+  goggleStrap.position.set(0, 0.212, -0.005);
+  headPivot.add(goggleStrap);
+
+  const goggleBridge = new THREE.Mesh(new THREE.BoxGeometry(0.052, 0.016, 0.018), brassMat);
+  goggleBridge.position.set(0, 0.218, 0.118);
+  goggleBridge.rotation.x = -0.34;
+  headPivot.add(goggleBridge);
+
+  for (const side of [-1, 1]) {
+    const lensGroup = new THREE.Group();
+    lensGroup.position.set(side * 0.052, 0.222, 0.11);
+    lensGroup.rotation.x = -0.34;
+    lensGroup.rotation.y = side * 0.22;
+
+    const brassRim = new THREE.Mesh(
+      new THREE.TorusGeometry(0.038, 0.011, 10, 20),
+      brassMat
+    );
+    lensGroup.add(brassRim);
+
+    const glass = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.036, 0.036, 0.014, 16),
+      goggleLensMat
+    );
+    glass.rotation.x = Math.PI / 2;
+    lensGroup.add(glass);
+
+    headPivot.add(lensGroup);
+  }
+
+  bodyGroup.add(headPivot);
+
+  return {
+    root,
+    rig: {
+      bodyGroup,
+      headPivot,
+      leftArmPivot,
+      rightArmPivot,
+      leftLegPivot,
+      rightLegPivot
+    }
+  };
+}
+
 function animateProceduralRig(rig: CharacterRig, t: number, pose: CharacterPose): void {
   // Neutral defaults
   rig.bodyGroup.position.set(0, 0, 0);
@@ -730,7 +920,11 @@ export function createStageCharacter(assets: AssetFactory, key: CharacterKey): A
       ? buildFrauHonigRig(ownedMaterials)
       : key === 'child_girl'
         ? buildChildGirlRig(ownedMaterials)
-        : buildChildBoyRig(ownedMaterials);
+        : key === 'alberta'
+          ? buildAlbertaRig(ownedMaterials)
+          : buildChildBoyRig(ownedMaterials);
+
+  built.root.userData.rig = built.rig;
 
   return {
     root: built.root,
@@ -741,4 +935,48 @@ export function createStageCharacter(assets: AssetFactory, key: CharacterKey): A
       animateProceduralRig(built.rig, t, pose);
     }
   };
+}
+
+export function animateCharacterWalk(
+  root: THREE.Object3D,
+  elapsed: number,
+  isMoving: boolean,
+  holdingWire: boolean,
+  celebrating: boolean
+): void {
+  const rig = root.userData?.rig as CharacterRig | undefined;
+  if (!rig) {
+    root.position.y = celebrating ? Math.abs(Math.sin(elapsed * 5.2)) * 0.14 : 0;
+    return;
+  }
+
+  if (celebrating) {
+    animateProceduralRig(rig, elapsed, 'cheer');
+    return;
+  }
+
+  rig.bodyGroup.rotation.set(0, 0, 0);
+  rig.headPivot.rotation.set(0, 0, 0);
+  rig.leftArmPivot.rotation.set(0, 0, 0);
+  rig.rightArmPivot.rotation.set(0, 0, 0);
+  rig.leftLegPivot.rotation.set(0, 0, 0);
+  rig.rightLegPivot.rotation.set(0, 0, 0);
+
+  if (isMoving) {
+    const stride = Math.sin(elapsed * 13);
+    rig.bodyGroup.position.set(0, Math.abs(Math.cos(elapsed * 13)) * 0.038, 0);
+    rig.bodyGroup.rotation.z = stride * 0.04;
+    rig.leftLegPivot.rotation.x = stride * 0.58;
+    rig.rightLegPivot.rotation.x = -stride * 0.58;
+    rig.leftArmPivot.rotation.x = -stride * 0.45;
+    rig.rightArmPivot.rotation.x = holdingWire ? -1.15 : stride * 0.45;
+    rig.rightArmPivot.rotation.z = holdingWire ? -0.15 : 0.12;
+    rig.headPivot.rotation.y = Math.sin(elapsed * 6.5) * 0.06;
+  } else {
+    rig.bodyGroup.position.set(0, Math.sin(elapsed * 2.4) * 0.012, 0);
+    rig.leftArmPivot.rotation.z = -0.12;
+    rig.rightArmPivot.rotation.x = holdingWire ? -1.05 + Math.sin(elapsed * 3.2) * 0.06 : 0;
+    rig.rightArmPivot.rotation.z = holdingWire ? -0.14 : 0.12;
+    rig.headPivot.rotation.y = Math.sin(elapsed * 1.4) * 0.1;
+  }
 }

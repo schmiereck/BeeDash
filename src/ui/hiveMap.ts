@@ -14,6 +14,7 @@ import { renderLevelPreview } from './levelPreview';
 interface HiveMapCallbacks {
   onSelectLevel: (level: LevelDefinition) => void;
   onStartLevel: (level: LevelDefinition) => void;
+  onOpenAlberta: () => void;
   onOpenCalibration: () => void;
   onOpenSettings: () => void;
   onToggleMute: () => void;
@@ -104,6 +105,7 @@ export class HiveMap {
           </div>
         </div>
         <div class="map-actions">
+          <button id="btn-map-alberta" class="btn btn-alberta btn-compact" type="button">🥽 Albertas Werkstatt</button>
           <button id="btn-map-cal" class="btn btn-secondary btn-compact" type="button">🕹️ Joystick einrichten</button>
           <button id="btn-map-settings" class="btn btn-secondary btn-compact" type="button">⚙️ Einstellungen</button>
           <button id="btn-map-mute" class="btn btn-secondary btn-compact" type="button">🔊 Ton an</button>
@@ -137,6 +139,10 @@ export class HiveMap {
     if (beeLayerEl) {
       this.beeOverlay = new MapBeeOverlay(beeLayerEl, this.assets);
     }
+
+    this.container.querySelector('#btn-map-alberta')?.addEventListener('click', () => {
+      this.callbacks.onOpenAlberta();
+    });
 
     this.container.querySelector('#btn-map-cal')?.addEventListener('click', () => {
       this.callbacks.onOpenCalibration();
