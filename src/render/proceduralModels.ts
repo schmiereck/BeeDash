@@ -172,6 +172,69 @@ const HONEY_SHARED_GEOS = {
   dripBulb: new THREE.SphereGeometry(1, 16, 12)
 };
 
+type StickyDropSpec = {
+  pos: [number, number, number];
+  scale: [number, number, number];
+  phase: number;
+};
+
+const PROCEDURAL_BEE_STICKY_SPECS: StickyDropSpec[] = [
+  { pos: [0, 0.22, 0.22], scale: [0.13, 0.08, 0.13], phase: 0.2 },
+  { pos: [0, 0.23, -0.04], scale: [0.15, 0.08, 0.16], phase: 1.4 },
+  { pos: [-0.18, 0.18, 0.01], scale: [0.13, 0.06, 0.11], phase: 2.5 },
+  { pos: [0.18, 0.18, 0.01], scale: [0.13, 0.06, 0.11], phase: 3.7 },
+  { pos: [-0.14, 0.02, -0.14], scale: [0.12, 0.1, 0.11], phase: 4.8 },
+  { pos: [0.05, -0.26, -0.02], scale: [0.075, 0.12, 0.075], phase: 5.5 }
+];
+
+const CUSTOM_BEE_STICKY_SPECS: StickyDropSpec[] = [
+  { pos: [0.0, 0.16, 0.31], scale: [0.12, 0.07, 0.12], phase: 0.2 },     // Stirn/Kopf
+  { pos: [0.0, 0.16, -0.08], scale: [0.14, 0.075, 0.15], phase: 1.4 },   // Rücken zwischen Flügeln
+  { pos: [-0.26, 0.24, 0.02], scale: [0.12, 0.065, 0.11], phase: 2.3 },  // Rechter Flügel
+  { pos: [0.26, 0.24, 0.02], scale: [0.12, 0.065, 0.11], phase: 3.5 },   // Linker Flügel
+  { pos: [-0.31, -0.1, -0.08], scale: [0.09, 0.11, 0.12], phase: 4.4 },  // Rechte Flanke
+  { pos: [0.3, -0.08, 0.06], scale: [0.09, 0.11, 0.12], phase: 5.1 },    // Linke Flanke
+  { pos: [0.03, -0.41, -0.02], scale: [0.075, 0.13, 0.075], phase: 5.8 },// Bauch-Tropfen
+  { pos: [-0.1, -0.37, -0.16], scale: [0.065, 0.11, 0.065], phase: 0.9 } // Hinterer Tropfen
+];
+
+/** Builds the hidden group of pulsing honey droplets for sticky bee state. */
+export function createBeeStickyGroup(variant: 'procedural' | 'custom' = 'procedural'): THREE.Group {
+  const stickyGroup = new THREE.Group();
+  stickyGroup.visible = false;
+  const specs = variant === 'custom' ? CUSTOM_BEE_STICKY_SPECS : PROCEDURAL_BEE_STICKY_SPECS;
+  for (const spec of specs) {
+    const splat = new THREE.Mesh(
+      HONEY_SHARED_GEOS.blobSphere,
+      SHARED_MATERIALS.honeyLiquid
+    );
+    splat.position.set(...spec.pos);
+    splat.scale.set(...spec.scale);
+    splat.castShadow = false;
+    splat.userData = {
+      sharedGeo: true,
+      baseY: spec.pos[1],
+      baseScale: spec.scale,
+      phase: spec.phase
+    };
+    stickyGroup.add(splat);
+  }
+  return stickyGroup;
+}
+
+/** Ensures a bee root has a reusable stickyGroup in userData without duplicating it. */
+export function attachBeeStickyGroup(
+  bee: THREE.Group,
+  variant: 'procedural' | 'custom' = 'custom'
+): THREE.Group {
+  const existing = bee.userData?.stickyGroup as THREE.Group | undefined;
+  if (existing) return existing;
+  const stickyGroup = createBeeStickyGroup(variant);
+  bee.add(stickyGroup);
+  bee.userData.stickyGroup = stickyGroup;
+  return stickyGroup;
+}
+
 function enableShadows(obj: THREE.Object3D, cast = true, receive = true): void {
   obj.traverse((child) => {
     if ((child as THREE.Mesh).isMesh) {
@@ -275,35 +338,7 @@ export function createBeeModel(scale = 1): THREE.Group {
   body.add(rightWingGroup);
 
   // Sticky honey globs (hidden unless wings got sticky from liquid honey)
-  const stickyGroup = new THREE.Group();
-  stickyGroup.visible = false;
-  const stickySpecs: Array<{
-    pos: [number, number, number];
-    scale: [number, number, number];
-    phase: number;
-  }> = [
-    { pos: [0, 0.22, 0.22], scale: [0.13, 0.08, 0.13], phase: 0.2 },
-    { pos: [0, 0.23, -0.04], scale: [0.15, 0.08, 0.16], phase: 1.4 },
-    { pos: [-0.18, 0.18, 0.01], scale: [0.13, 0.06, 0.11], phase: 2.5 },
-    { pos: [0.18, 0.18, 0.01], scale: [0.13, 0.06, 0.11], phase: 3.7 },
-    { pos: [-0.14, 0.02, -0.14], scale: [0.12, 0.1, 0.11], phase: 4.8 },
-    { pos: [0.05, -0.26, -0.02], scale: [0.075, 0.12, 0.075], phase: 5.5 }
-  ];
-  for (const spec of stickySpecs) {
-    const splat = new THREE.Mesh(
-      HONEY_SHARED_GEOS.blobSphere,
-      SHARED_MATERIALS.honeyLiquid
-    );
-    splat.position.set(...spec.pos);
-    splat.scale.set(...spec.scale);
-    splat.userData = {
-      sharedGeo: true,
-      baseY: spec.pos[1],
-      baseScale: spec.scale,
-      phase: spec.phase
-    };
-    stickyGroup.add(splat);
-  }
+  const stickyGroup = createBeeStickyGroup('procedural');
   body.add(stickyGroup);
 
   root.scale.setScalar(scale);

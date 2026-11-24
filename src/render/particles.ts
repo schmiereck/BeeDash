@@ -9,15 +9,16 @@ interface Particle {
   maxAge: number;
   gravity: number;
   spin: number;
+  shrinkRate: number;
 }
 
 const PARTICLE_GEO = new THREE.SphereGeometry(0.085, 8, 6);
 
-function createStarShapeGeometry(): THREE.ShapeGeometry {
+function createStarShapeGeometry(): THREE.ExtrudeGeometry {
   const shape = new THREE.Shape();
   const points = 5;
-  const outerR = 0.115;
-  const innerR = 0.05;
+  const outerR = 0.185;
+  const innerR = 0.082;
   for (let i = 0; i < points * 2; i++) {
     const r = i % 2 === 0 ? outerR : innerR;
     const angle = (i / (points * 2)) * Math.PI * 2 + Math.PI / 2;
@@ -27,7 +28,9 @@ function createStarShapeGeometry(): THREE.ShapeGeometry {
     else shape.lineTo(x, y);
   }
   shape.closePath();
-  return new THREE.ShapeGeometry(shape);
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.028, bevelEnabled: false });
+  geo.translate(0, 0, -0.014);
+  return geo;
 }
 
 const STAR_PARTICLE_GEO = createStarShapeGeometry();
@@ -73,7 +76,8 @@ export class ParticleSystem {
         age: 0,
         maxAge: maxAge * (0.8 + Math.random() * 0.35),
         gravity,
-        spin: (Math.random() - 0.5) * 6
+        spin: (Math.random() - 0.5) * 6,
+        shrinkRate: 0.55
       });
     }
   }
@@ -265,7 +269,8 @@ export class ParticleSystem {
       age: 0,
       maxAge,
       gravity,
-      spin: (Math.random() >= 0.5 ? 1 : -1) * (4.5 + Math.random() * 4)
+      spin: (Math.random() >= 0.5 ? 1 : -1) * (4.5 + Math.random() * 4),
+      shrinkRate: 0.24
     });
   }
 
@@ -297,14 +302,14 @@ export class ParticleSystem {
     this.spawnStar(
       worldX + jitterX,
       worldY + jitterY,
-      worldZ + 0.08,
+      worldZ + 0.18,
       color,
       (Math.random() - 0.5) * 0.25,
-      0.18 + Math.random() * 0.22,
-      0.28 + Math.random() * 0.25,
-      -0.35,
-      0.85,
-      0.85 + Math.random() * 0.45
+      0.12 + Math.random() * 0.18,
+      0.34 + Math.random() * 0.24,
+      -0.25,
+      1.45,
+      1.15 + Math.random() * 0.5
     );
   }
 
@@ -328,7 +333,7 @@ export class ParticleSystem {
       const t = p.age / p.maxAge;
       const mat = p.mesh.material as THREE.MeshBasicMaterial;
       mat.opacity = Math.max(0, 1 - t);
-      p.mesh.scale.multiplyScalar(1 - dt * 0.55);
+      p.mesh.scale.multiplyScalar(1 - dt * p.shrinkRate);
     }
   }
 

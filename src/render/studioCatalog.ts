@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { AssetFactory } from './assetFactory';
-import { HoneyBlobMotion } from './proceduralModels';
+import { attachBeeStickyGroup, HoneyBlobMotion } from './proceduralModels';
 import {
   CharacterKey,
   CharacterPose,
@@ -71,6 +71,22 @@ export const STUDIO_BEE_TRICKS: Array<{ id: StudioBeeTrick; emoji: string; label
   { id: 'spin', emoji: '💃', label: 'Pirouette' },
   { id: 'waggle', emoji: '🐝', label: 'Schwänzeltanz' }
 ];
+
+const STUDIO_DIZZY_STAR_GEO = (() => {
+  const starShape = new THREE.Shape();
+  for (let i = 0; i < 10; i++) {
+    const r = i % 2 === 0 ? 0.17 : 0.075;
+    const a = (i / 10) * Math.PI * 2 + Math.PI / 2;
+    if (i === 0) starShape.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+    else starShape.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+  }
+  starShape.closePath();
+  const geo = new THREE.ExtrudeGeometry(starShape, { depth: 0.032, bevelEnabled: false });
+  geo.translate(0, 0, -0.016);
+  return geo;
+})();
+
+const STUDIO_DIZZY_STAR_COLORS = [0xffe045, 0xfff5a5, 0xffc233, 0xff9ec4];
 
 const STANDING_OBJECT_SPECS: StudioItemSpec[] = [
   {
@@ -602,37 +618,46 @@ export function buildStudioStageItem(
               : assets.createBee();
     bee.scale.setScalar(1.45);
     bee.position.set(0, 0.78, 0);
+    const isCustomGlb = hasCustomModelAncestor(bee);
+    attachBeeStickyGroup(bee, isCustomGlb ? 'custom' : 'procedural');
     root.add(bee);
 
-    // Trailing 5-pointed stars shown behind the bee during dizzy figure-8 stun mode
-    const starShape = new THREE.Shape();
-    for (let i = 0; i < 10; i++) {
-      const r = i % 2 === 0 ? 0.095 : 0.042;
-      const a = (i / 10) * Math.PI * 2 + Math.PI / 2;
-      if (i === 0) starShape.moveTo(Math.cos(a) * r, Math.sin(a) * r);
-      else starShape.lineTo(Math.cos(a) * r, Math.sin(a) * r);
-    }
-    starShape.closePath();
-    const starGeo = new THREE.ShapeGeometry(starShape);
-    const starMat = new THREE.MeshBasicMaterial({
-      color: 0xffe066,
-      side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0.92
-    });
-    ownedMaterials.push(starMat);
+    // 14 trailing 3D stars + 3 orbiting halo stars shown during dizzy stun mode
     const dizzyStarGroup = new THREE.Group();
     dizzyStarGroup.visible = false;
     const trailStars: THREE.Mesh[] = [];
-    for (let i = 0; i < 6; i++) {
-      const st = new THREE.Mesh(starGeo, starMat);
+    const trailBaseOpacity: number[] = [];
+    for (let i = 0; i < 14; i++) {
+      const baseOp = 0.98 - (i / 13) * 0.7;
+      const mat = new THREE.MeshBasicMaterial({
+        color: STUDIO_DIZZY_STAR_COLORS[i % STUDIO_DIZZY_STAR_COLORS.length],
+        transparent: true,
+        opacity: baseOp
+      });
+      ownedMaterials.push(mat);
+      const st = new THREE.Mesh(STUDIO_DIZZY_STAR_GEO, mat);
+      st.userData.sharedGeo = true;
       dizzyStarGroup.add(st);
       trailStars.push(st);
+      trailBaseOpacity.push(baseOp);
+    }
+
+    const haloStars: THREE.Mesh[] = [];
+    for (let i = 0; i < 3; i++) {
+      const mat = new THREE.MeshBasicMaterial({
+        color: STUDIO_DIZZY_STAR_COLORS[i % STUDIO_DIZZY_STAR_COLORS.length],
+        transparent: true,
+        opacity: 0.95
+      });
+      ownedMaterials.push(mat);
+      const st = new THREE.Mesh(STUDIO_DIZZY_STAR_GEO, mat);
+      st.userData.sharedGeo = true;
+      dizzyStarGroup.add(st);
+      haloStars.push(st);
     }
     root.add(dizzyStarGroup);
 
     let wingPhase = 0;
-    const isCustomGlb = hasCustomModelAncestor(bee);
 
     return {
       root,
@@ -662,25 +687,40 @@ export function buildStudioStageItem(
         if (isDizzy) {
           const w = 2.65;
           const phase = elapsed * w;
-          posX = Math.sin(phase) * 0.44;
-          posZ = Math.sin(phase * 2) * 0.24;
-          posY = 0.9 + Math.cos(phase * 2) * 0.08;
-          rotY = Math.atan2(Math.cos(phase) * 0.44 * w, Math.cos(phase * 2) * 0.48 * w);
+          posX = Math.sin(phase) * 0.62;
+          posZ = Math.sin(phase * 2) * 0.34;
+          posY = 0.92 + Math.cos(phase * 2) * 0.11;
+          rotY = Math.atan2(Math.cos(phase) * 0.62 * w, Math.cos(phase * 2) * 0.68 * w);
           rotX = 0.14;
           rotZ = Math.sin(phase * 3) * 0.34;
 
           dizzyStarGroup.visible = true;
           trailStars.forEach((st, idx) => {
-            const lagPhase = Math.max(0, elapsed - (idx + 1) * 0.11) * w;
+            const lagPhase = Math.max(0, elapsed - (idx + 1) * 0.105) * w;
+            const wobble = Math.sin(idx * 1.9 + elapsed * 3) * 0.04;
             st.position.set(
-              Math.sin(lagPhase) * 0.44,
-              0.94 + Math.cos(lagPhase * 2) * 0.08 + idx * 0.025,
-              Math.sin(lagPhase * 2) * 0.24
+              Math.sin(lagPhase) * 0.62 + wobble,
+              0.92 + Math.cos(lagPhase * 2) * 0.11 + idx * 0.022,
+              Math.sin(lagPhase * 2) * 0.34 + wobble * 0.7
             );
             st.rotation.y = elapsed * 2.5 + idx;
             st.rotation.z = elapsed * 4.0 + idx * 0.9;
-            const s = (1 - idx * 0.11) * (0.85 + Math.sin(elapsed * 6 + idx) * 0.18);
-            st.scale.setScalar(Math.max(0.25, s));
+            const s = (1.15 - (idx / 13) * 0.77) * (0.9 + Math.sin(elapsed * 5 + idx) * 0.14);
+            st.scale.setScalar(Math.max(0.3, s));
+            (st.material as THREE.MeshBasicMaterial).opacity = trailBaseOpacity[idx];
+          });
+
+          const haloY = posY + 0.62;
+          haloStars.forEach((st, idx) => {
+            const a = elapsed * 3.6 + (idx * Math.PI * 2) / 3;
+            st.position.set(
+              posX + Math.cos(a) * 0.36,
+              haloY + Math.sin(a * 2) * 0.04,
+              posZ + Math.sin(a) * 0.36
+            );
+            st.rotation.y = -a;
+            st.rotation.z = elapsed * 3.2 + idx;
+            st.scale.setScalar(0.88 + Math.sin(elapsed * 6 + idx) * 0.12);
           });
         } else {
           dizzyStarGroup.visible = false;

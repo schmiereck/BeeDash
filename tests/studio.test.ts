@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { AssetFactory } from '../src/render/assetFactory';
 import { applyStorybookCelShading } from '../src/render/celShading';
+import { attachBeeStickyGroup } from '../src/render/proceduralModels';
 import {
   buildStudioStageItem,
   disposeStudioInstance,
@@ -212,5 +213,55 @@ describe('BeeDash 3D-Atelier Katalog & Builder', () => {
     ).toBe(false);
     geo.dispose();
     mat.dispose();
+  });
+
+  it('attaches pulsing sticky honey drops to custom bee models and toggles visibility cleanly', () => {
+    const customBee = new THREE.Group();
+    const sticky = attachBeeStickyGroup(customBee, 'custom');
+    expect(customBee.userData.stickyGroup).toBe(sticky);
+    expect(sticky.visible).toBe(false);
+    expect(sticky.children.length).toBeGreaterThanOrEqual(6);
+    for (const drop of sticky.children) {
+      expect(drop.userData.sharedGeo).toBe(true);
+    }
+
+    const assets = new AssetFactory();
+    const item = STUDIO_ITEMS.find((entry) => entry.id === 'bee_higgsfield_multiview_stripes')!;
+    const instance = buildStudioStageItem(item, assets);
+    let foundSticky: THREE.Group | undefined;
+    instance.root.traverse((obj) => {
+      if (obj.userData?.stickyGroup) foundSticky = obj.userData.stickyGroup as THREE.Group;
+    });
+    expect(foundSticky).toBeDefined();
+
+    instance.update(1.0, 0.016, {
+      pose: 'wave',
+      toggles: {
+        sticky: true,
+        dizzy: true,
+        bowlFilled: false,
+        platePressed: false,
+        suitcaseOpen: false
+      },
+      revealElapsed: 1.0,
+      beeTrick: null
+    });
+    expect(foundSticky!.visible).toBe(true);
+
+    instance.update(1.2, 0.016, {
+      pose: 'wave',
+      toggles: {
+        sticky: false,
+        dizzy: false,
+        bowlFilled: false,
+        platePressed: false,
+        suitcaseOpen: false
+      },
+      revealElapsed: 1.2,
+      beeTrick: null
+    });
+    expect(foundSticky!.visible).toBe(false);
+
+    disposeStudioInstance(instance);
   });
 });

@@ -460,11 +460,11 @@ export class BoardRenderer {
         this.dizzyAnimTime += dt;
         const w = 2.65;
         const phase = this.dizzyAnimTime * w;
-        const figX = Math.sin(phase) * 0.44;
-        const figY = Math.sin(phase * 2) * 0.22;
+        const figX = Math.sin(phase) * 0.52;
+        const figY = Math.sin(phase * 2) * 0.28;
         const figZ = 0.42 + Math.cos(phase * 2) * 0.08;
-        const vx = Math.cos(phase) * 0.44 * w;
-        const vy = Math.cos(phase * 2) * 0.44 * w;
+        const vx = Math.cos(phase) * 0.52 * w;
+        const vy = Math.cos(phase * 2) * 0.56 * w;
         const dizzyYaw = Math.atan2(vx, -vy);
 
         renderX = this.beeWorldX + figX;
@@ -476,7 +476,7 @@ export class BoardRenderer {
         this.currentBeeYaw = dizzyYaw;
 
         this.dizzyStarTimer += dt;
-        if (this.dizzyStarTimer >= 0.065) {
+        if (this.dizzyStarTimer >= 0.048) {
           this.dizzyStarTimer = 0;
           this.particles.emitDizzyStar(renderX, renderY, renderZ);
         }

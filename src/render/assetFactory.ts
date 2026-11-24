@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { PestKind, TileType } from '../game/types';
 import {
+  attachBeeStickyGroup,
   createBeeModel,
   createFlowerBudModel,
   createFlowerModel,
@@ -171,15 +172,19 @@ export class AssetFactory {
     const clone = SkeletonUtils.clone(custom);
     const group = clone instanceof THREE.Group ? clone : new THREE.Group().add(clone);
     group.userData.isCustomModel = true;
+    if (key.startsWith('bee')) {
+      attachBeeStickyGroup(group, 'custom');
+    }
     return group;
   }
 
   createBee(): THREE.Group {
     const custom = this.customModels.get('bee');
     if (custom) {
-      const clone = custom.clone(true);
+      const clone = SkeletonUtils.clone(custom);
       const group = clone instanceof THREE.Group ? clone : new THREE.Group().add(clone);
       group.userData.isCustomModel = true;
+      attachBeeStickyGroup(group, 'custom');
       return group;
     }
     return createBeeModel(1);
