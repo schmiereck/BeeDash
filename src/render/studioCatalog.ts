@@ -449,6 +449,22 @@ export const STUDIO_ITEMS: StudioItemSpec[] = [
     pedestalRadius: 1.3,
     isBee: true
   },
+  {
+    id: 'bee_higgsfield',
+    category: 'characters',
+    emoji: '🧪',
+    label: 'Biene (Higgsfield 3D + Skelett)',
+    description:
+      'Aus deinen Seedream-Ansichten mit Higgsfield generierte Buch-Biene (.glb) inklusive 4-Knochen-Flügelskelett – teste Tricks, Honigkleber & Buch-Stil!',
+    defaultRadius: 2.7,
+    minRadius: 1.4,
+    maxRadius: 5.5,
+    targetY: 0.78,
+    defaultYaw: 0.45,
+    defaultPitch: 0.28,
+    pedestalRadius: 1.3,
+    isBee: true
+  },
   ...SUITCASE_SCENES.map((sceneDef, idx) => ({
     id: `scene_${sceneDef.id}`,
     category: 'scenes' as const,
@@ -526,7 +542,10 @@ export function buildStudioStageItem(
   }
 
   if (item.isBee) {
-    const bee = assets.createBee();
+    const bee =
+      item.id === 'bee_higgsfield'
+        ? assets.createCustomModel('bee_higgsfield') ?? assets.createBee()
+        : assets.createBee();
     bee.scale.setScalar(1.45);
     bee.position.set(0, 0.78, 0);
     root.add(bee);
@@ -647,6 +666,11 @@ export function buildStudioStageItem(
         const flap = Math.sin(wingPhase) * wingAmp;
         if (leftWing) leftWing.rotation.z = 0.25 + flap;
         if (rightWing) rightWing.rotation.z = -0.25 - flap;
+
+        const boneWingL = bee.getObjectByName('WingL');
+        const boneWingR = bee.getObjectByName('WingR');
+        if (boneWingL) boneWingL.rotation.z = flap;
+        if (boneWingR) boneWingR.rotation.z = -flap;
 
         if (stickyGroup) {
           stickyGroup.visible = isSticky;

@@ -31,6 +31,8 @@ varying vec3 vLocalPos;
 varying vec3 vViewNormal;
 varying vec3 vViewDir;
 
+#include <skinning_pars_vertex>
+
 float organicWave(vec3 p) {
   float w1 = sin(p.x * 1.7 + sin(p.y * 2.3)) * cos(p.z * 1.9 + cos(p.x * 1.3));
   float w2 = sin(p.y * 3.7 - cos(p.z * 4.1)) * cos(p.x * 3.1 + sin(p.y * 2.9));
@@ -39,16 +41,20 @@ float organicWave(vec3 p) {
 
 void main() {
   float nLen = length(normal);
-  vec3 n = nLen > 0.0001 ? normal / nLen : normalize(position + vec3(0.0001));
+  vec3 objectNormal = nLen > 0.0001 ? normal / nLen : normalize(position + vec3(0.0001));
   float w = organicWave(position * uWobbleFreq);
   float disp = uThickness * (1.0 + uWobbleAmp * w);
-  vec3 extruded = position + n * disp;
+  vec3 transformed = position + objectNormal * disp;
 
-  vec3 viewN = normalMatrix * n;
+  #include <skinbase_vertex>
+  #include <skinnormal_vertex>
+  #include <skinning_vertex>
+
+  vec3 viewN = normalMatrix * objectNormal;
   vViewNormal = length(viewN) > 0.0001 ? normalize(viewN) : vec3(0.0, 0.0, 1.0);
   vLocalPos = position;
 
-  vec4 mvPos = modelViewMatrix * vec4(extruded, 1.0);
+  vec4 mvPos = modelViewMatrix * vec4(transformed, 1.0);
   vViewDir = normalize(-mvPos.xyz);
   gl_Position = projectionMatrix * mvPos;
 }
@@ -225,9 +231,10 @@ export function applyStorybookCelShading(
       }
     }
 
-    // Add inverted-hull soft pencil/chalk contour for non-skinned opaque meshes
-    const isSkinned = Boolean((mesh as THREE.SkinnedMesh).isSkinnedMesh);
-    if (hasOpaqueSurface && !isSkinned && mesh.geometry) {
+    // Add inverted-hull soft pencil/chalk contour for static and skinned opaque meshes
+    const isSkinned =
+      mesh instanceof THREE.SkinnedMesh || Boolean((mesh as THREE.SkinnedMesh).isSkinnedMesh);
+    if (hasOpaqueSurface && mesh.geometry) {
       mesh.getWorldScale(worldScale);
       const avgScale = Math.max(
         0.001,
@@ -253,13 +260,33 @@ export function applyStorybookCelShading(
       });
       ownedMaterials.push(outlineMat);
 
-      const outlineMesh = new THREE.Mesh(mesh.geometry, outlineMat);
+      let outlineMesh: THREE.Mesh;
+      if (isSkinned) {
+        const skinnedSrc = mesh as THREE.SkinnedMesh;
+        const skinnedOutline = new THREE.SkinnedMesh(mesh.geometry, outlineMat);
+        if (skinnedSrc.skeleton) {
+          skinnedOutline.bind(skinnedSrc.skeleton, skinnedSrc.bindMatrix);
+        }
+        skinnedOutline.position.copy(mesh.position);
+        skinnedOutline.rotation.copy(mesh.rotation);
+        skinnedOutline.scale.copy(mesh.scale);
+        skinnedOutline.matrixAutoUpdate = mesh.matrixAutoUpdate;
+        if (!mesh.matrixAutoUpdate) {
+          skinnedOutline.matrix.copy(mesh.matrix);
+        }
+        skinnedOutline.frustumCulled = mesh.frustumCulled;
+        (mesh.parent ?? mesh).add(skinnedOutline);
+        outlineMesh = skinnedOutline;
+      } else {
+        outlineMesh = new THREE.Mesh(mesh.geometry, outlineMat);
+        mesh.add(outlineMesh);
+      }
+
       outlineMesh.name = `${mesh.name || 'mesh'}_cel_outline`;
       outlineMesh.userData.isCelOutline = true;
       outlineMesh.userData.sharedGeo = true;
       outlineMesh.castShadow = false;
       outlineMesh.receiveShadow = false;
-      mesh.add(outlineMesh);
       outlineMeshes.push(outlineMesh);
     }
   }

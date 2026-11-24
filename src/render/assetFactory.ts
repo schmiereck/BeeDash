@@ -24,6 +24,7 @@ import {
 
 export type ModelKey =
   | 'bee'
+  | 'bee_higgsfield'
   | 'honeypot'
   | 'honeypot_higgsfield'
   | 'flower'
@@ -164,7 +165,7 @@ export class AssetFactory {
   createCustomModel(key: ModelKey): THREE.Group | null {
     const custom = this.customModels.get(key);
     if (!custom) return null;
-    const clone = custom.clone(true);
+    const clone = SkeletonUtils.clone(custom);
     const group = clone instanceof THREE.Group ? clone : new THREE.Group().add(clone);
     group.userData.isCustomModel = true;
     return group;

@@ -29,6 +29,7 @@ describe('BeeDash 3D-Atelier Katalog & Builder', () => {
     expect(ids.has('child_boy')).toBe(true);
     expect(ids.has('alberta')).toBe(true);
     expect(ids.has('bee')).toBe(true);
+    expect(ids.has('bee_higgsfield')).toBe(true);
 
     for (const sceneDef of SUITCASE_SCENES) {
       expect(ids.has(`scene_${sceneDef.id}`)).toBe(true);
@@ -168,5 +169,45 @@ describe('BeeDash 3D-Atelier Katalog & Builder', () => {
     bodyMat.dispose();
     haloGeo.dispose();
     haloMat.dispose();
+  });
+
+  it('creates bound SkinnedMesh outlines with cel-shading and verifies rigged bee GLB structure', () => {
+    const root = new THREE.Group();
+    const boneRoot = new THREE.Bone();
+    const wingL = new THREE.Bone();
+    boneRoot.add(wingL);
+    root.add(boneRoot);
+
+    const geo = new THREE.BoxGeometry(0.4, 0.2, 0.2);
+    const count = geo.attributes.position.count;
+    geo.setAttribute(
+      'skinIndex',
+      new THREE.Uint16BufferAttribute(new Uint16Array(count * 4), 4)
+    );
+    const weights = new Float32Array(count * 4);
+    for (let i = 0; i < count; i++) weights[i * 4] = 1;
+    geo.setAttribute('skinWeight', new THREE.Float32BufferAttribute(weights, 4));
+
+    const mat = new THREE.MeshStandardMaterial({ color: 0xe8ab54 });
+    const skinned = new THREE.SkinnedMesh(geo, mat);
+    skinned.bind(new THREE.Skeleton([boneRoot, wingL]));
+    root.add(skinned);
+
+    const handle = applyStorybookCelShading(root);
+    expect(handle.convertedMaterialCount).toBe(1);
+    expect(handle.outlineCount).toBe(1);
+    const skinnedOutline = root.children.find(
+      (c): c is THREE.SkinnedMesh =>
+        c instanceof THREE.SkinnedMesh && c.userData.isCelOutline === true
+    );
+    expect(skinnedOutline).toBeDefined();
+    expect(skinnedOutline!.skeleton).toBe(skinned.skeleton);
+
+    handle.restore();
+    expect(
+      root.children.some((c) => c.userData.isCelOutline === true)
+    ).toBe(false);
+    geo.dispose();
+    mat.dispose();
   });
 });
