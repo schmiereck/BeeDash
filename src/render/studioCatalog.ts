@@ -450,6 +450,22 @@ export const STUDIO_ITEMS: StudioItemSpec[] = [
     isBee: true
   },
   {
+    id: 'bee_higgsfield_multiview',
+    category: 'characters',
+    emoji: '🎨',
+    label: 'Biene (Seedream Multiview)',
+    description:
+      'Allererste Multiview-Seedream-Biene (.glb) mit ursprünglicher Tripo-Textur und 4-Knochen-Flügelskelett zum Vergleich.',
+    defaultRadius: 2.7,
+    minRadius: 1.4,
+    maxRadius: 5.5,
+    targetY: 0.78,
+    defaultYaw: 0.45,
+    defaultPitch: 0.28,
+    pedestalRadius: 1.3,
+    isBee: true
+  },
+  {
     id: 'bee_higgsfield',
     category: 'characters',
     emoji: '🧪',
@@ -471,7 +487,7 @@ export const STUDIO_ITEMS: StudioItemSpec[] = [
     emoji: '✨',
     label: 'Biene (Seedream – korrigiert)',
     description:
-      'Reparierte Seedream-Biene (.glb): Flügel symmetrisch ausgerichtet & flacher gedreht, rundes Frau-Honig-Hinterteil und geglättete Wange.',
+      'Reparierte Seedream-Biene (.glb): Flügel seitlich & symmetrisch ausgerichtet, flacher gedreht, ohne Rücken-Zipfel und mit rundem Frau-Honig-Hinterteil.',
     defaultRadius: 2.7,
     minRadius: 1.4,
     maxRadius: 5.5,
@@ -559,11 +575,13 @@ export function buildStudioStageItem(
 
   if (item.isBee) {
     const bee =
-      item.id === 'bee_higgsfield'
-        ? assets.createCustomModel('bee_higgsfield') ?? assets.createBee()
-        : item.id === 'bee_higgsfield_v2'
-          ? assets.createCustomModel('bee_higgsfield_v2') ?? assets.createBee()
-          : assets.createBee();
+      item.id === 'bee_higgsfield_multiview'
+        ? assets.createCustomModel('bee_higgsfield_multiview') ?? assets.createBee()
+        : item.id === 'bee_higgsfield'
+          ? assets.createCustomModel('bee_higgsfield') ?? assets.createBee()
+          : item.id === 'bee_higgsfield_v2'
+            ? assets.createCustomModel('bee_higgsfield_v2') ?? assets.createBee()
+            : assets.createBee();
     bee.scale.setScalar(1.45);
     bee.position.set(0, 0.78, 0);
     root.add(bee);
