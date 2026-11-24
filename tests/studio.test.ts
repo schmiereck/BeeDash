@@ -150,7 +150,15 @@ describe('BeeDash 3D-Atelier Katalog & Builder', () => {
     expect(handle.outlineCount).toBe(1);
     expect(mesh.material).toBeInstanceOf(THREE.MeshToonMaterial);
     expect(halo.material).toBe(haloMat);
-    expect(mesh.children.some((c) => c.userData.isCelOutline === true)).toBe(true);
+    const outlineChild = mesh.children.find(
+      (c): c is THREE.Mesh => c.userData.isCelOutline === true
+    );
+    expect(outlineChild).toBeDefined();
+    const outlineMat = outlineChild!.material as THREE.ShaderMaterial;
+    expect(outlineMat.transparent).toBe(true);
+    expect(outlineMat.depthWrite).toBe(false);
+    expect(outlineMat.uniforms.uOpacity.value).toBeLessThan(1);
+    expect(outlineMat.uniforms.uGrainStrength.value).toBeGreaterThan(0);
 
     handle.restore();
     expect(mesh.material).toBe(bodyMat);

@@ -3,6 +3,8 @@ import * as THREE from 'three';
 export interface CelShadingOptions {
   outlineColor?: number;
   outlineThickness?: number;
+  outlineOpacity?: number;
+  grainStrength?: number;
   wobbleAmp?: number;
   wobbleFreq?: number;
 }
@@ -25,8 +27,14 @@ uniform float uThickness;
 uniform float uWobbleAmp;
 uniform float uWobbleFreq;
 
+varying vec3 vLocalPos;
+varying vec3 vViewNormal;
+varying vec3 vViewDir;
+
 float organicWave(vec3 p) {
-  return sin(p.x * 1.7 + sin(p.y * 2.3)) * cos(p.z * 1.9 + cos(p.x * 1.3));
+  float w1 = sin(p.x * 1.7 + sin(p.y * 2.3)) * cos(p.z * 1.9 + cos(p.x * 1.3));
+  float w2 = sin(p.y * 3.7 - cos(p.z * 4.1)) * cos(p.x * 3.1 + sin(p.y * 2.9));
+  return 0.65 * w1 + 0.35 * w2;
 }
 
 void main() {
@@ -35,24 +43,78 @@ void main() {
   float w = organicWave(position * uWobbleFreq);
   float disp = uThickness * (1.0 + uWobbleAmp * w);
   vec3 extruded = position + n * disp;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(extruded, 1.0);
+
+  vec3 viewN = normalMatrix * n;
+  vViewNormal = length(viewN) > 0.0001 ? normalize(viewN) : vec3(0.0, 0.0, 1.0);
+  vLocalPos = position;
+
+  vec4 mvPos = modelViewMatrix * vec4(extruded, 1.0);
+  vViewDir = normalize(-mvPos.xyz);
+  gl_Position = projectionMatrix * mvPos;
 }
 `;
 
 const OUTLINE_FRAGMENT_SHADER = `
 uniform vec3 uColor;
+uniform float uOpacity;
+uniform float uGrainStrength;
+uniform float uWobbleFreq;
+
+varying vec3 vLocalPos;
+varying vec3 vViewNormal;
+varying vec3 vViewDir;
+
+float hash13(vec3 p) {
+  p = fract(p * 0.1031);
+  p += dot(p, p.zyx + 31.32);
+  return fract((p.x + p.y) * p.z);
+}
+
+float valueNoise3(vec3 p) {
+  vec3 i = floor(p);
+  vec3 f = fract(p);
+  vec3 u = f * f * (3.0 - 2.0 * f);
+
+  float n000 = hash13(i + vec3(0.0, 0.0, 0.0));
+  float n100 = hash13(i + vec3(1.0, 0.0, 0.0));
+  float n010 = hash13(i + vec3(0.0, 1.0, 0.0));
+  float n110 = hash13(i + vec3(1.0, 1.0, 0.0));
+  float n001 = hash13(i + vec3(0.0, 0.0, 1.0));
+  float n101 = hash13(i + vec3(1.0, 0.0, 1.0));
+  float n011 = hash13(i + vec3(0.0, 1.0, 1.0));
+  float n111 = hash13(i + vec3(1.0, 1.0, 1.0));
+
+  float nx00 = mix(n000, n100, u.x);
+  float nx10 = mix(n010, n110, u.x);
+  float nx01 = mix(n001, n101, u.x);
+  float nx11 = mix(n011, n111, u.x);
+  float nxy0 = mix(nx00, nx10, u.y);
+  float nxy1 = mix(nx01, nx11, u.y);
+  return mix(nxy0, nxy1, u.z);
+}
 
 void main() {
-  gl_FragColor = vec4(uColor, 1.0);
+  float n1 = valueNoise3(vLocalPos * (uWobbleFreq * 2.2));
+  float n2 = valueNoise3(vLocalPos * (uWobbleFreq * 5.1) + vec3(7.3, 2.9, 5.1));
+  float tooth = mix(n1, n2, 0.45);
+  float pigment = mix(1.0, smoothstep(0.18, 0.85, tooth), uGrainStrength);
+
+  float ndotv = abs(dot(normalize(vViewNormal), normalize(vViewDir)));
+  float feather = smoothstep(0.0, 0.38, ndotv);
+  float alpha = clamp(uOpacity * feather * pigment, 0.0, 1.0);
+  if (alpha < 0.03) discard;
+
+  vec3 softTint = mix(uColor + vec3(0.09, 0.08, 0.07), uColor, pigment);
+  gl_FragColor = vec4(softTint, alpha);
 }
 `;
 
 /**
- * Generates a sharp 4-step grayscale DataTexture for Three.js MeshToonMaterial
- * to match hand-colored storybook illustrations without muddy gradients.
+ * Generates a gentle 4-step grayscale DataTexture for Three.js MeshToonMaterial
+ * to match warm watercolor / colored-pencil storybook illustrations.
  */
 export function createStorybookGradientMap(): THREE.DataTexture {
-  const bands = new Uint8Array([95, 165, 225, 255]);
+  const bands = new Uint8Array([122, 178, 224, 255]);
   const tex = new THREE.DataTexture(bands, bands.length, 1, THREE.RedFormat);
   tex.minFilter = THREE.NearestFilter;
   tex.magFilter = THREE.NearestFilter;
@@ -98,17 +160,19 @@ function toToonMaterial(
 }
 
 /**
- * Applies storybook cel-shading (4-band toon materials + slightly uneven hand-drawn
- * inverted-hull ink outlines) to an object tree, returning a reversible handle.
+ * Applies storybook cel-shading (gentle 4-band toon materials + soft uneven
+ * pencil/chalk inverted-hull contours) to an object tree, returning a reversible handle.
  */
 export function applyStorybookCelShading(
   root: THREE.Object3D,
   options: CelShadingOptions = {}
 ): CelShadingHandle {
-  const outlineColor = options.outlineColor ?? 0x2b1d14;
-  const outlineThickness = options.outlineThickness ?? 0.018;
-  const wobbleAmp = options.wobbleAmp ?? 0.38;
-  const wobbleFreq = options.wobbleFreq ?? 18.0;
+  const outlineColor = options.outlineColor ?? 0x4b3b30;
+  const outlineThickness = options.outlineThickness ?? 0.020;
+  const outlineOpacity = options.outlineOpacity ?? 0.82;
+  const grainStrength = options.grainStrength ?? 0.42;
+  const wobbleAmp = options.wobbleAmp ?? 0.45;
+  const wobbleFreq = options.wobbleFreq ?? 16.0;
 
   const gradientMap = createStorybookGradientMap();
   const ownedMaterials: THREE.Material[] = [];
@@ -161,7 +225,7 @@ export function applyStorybookCelShading(
       }
     }
 
-    // Add inverted-hull hand-drawn ink outline for non-skinned opaque meshes
+    // Add inverted-hull soft pencil/chalk contour for non-skinned opaque meshes
     const isSkinned = Boolean((mesh as THREE.SkinnedMesh).isSkinnedMesh);
     if (hasOpaqueSurface && !isSkinned && mesh.geometry) {
       mesh.getWorldScale(worldScale);
@@ -175,12 +239,17 @@ export function applyStorybookCelShading(
         uniforms: {
           uColor: { value: colorVec },
           uThickness: { value: localThickness },
+          uOpacity: { value: outlineOpacity },
+          uGrainStrength: { value: grainStrength },
           uWobbleAmp: { value: wobbleAmp },
           uWobbleFreq: { value: wobbleFreq }
         },
         vertexShader: OUTLINE_VERTEX_SHADER,
         fragmentShader: OUTLINE_FRAGMENT_SHADER,
-        side: THREE.BackSide
+        side: THREE.BackSide,
+        transparent: true,
+        depthWrite: false,
+        depthTest: true
       });
       ownedMaterials.push(outlineMat);
 

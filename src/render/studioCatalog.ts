@@ -79,7 +79,7 @@ const STANDING_OBJECT_SPECS: StudioItemSpec[] = [
     emoji: '🧪',
     label: 'Honigglas (Higgsfield 3D)',
     description:
-      'Aus dem Buch-Scan mit Higgsfield generiertes 3D-Honigglas (.glb) – im Buch-Stil (Cel-Shaded + Tusche-Kontur) oder Original vergleichbar.',
+      'Aus dem Buch-Scan mit Higgsfield generiertes 3D-Honigglas (.glb) – im Buch-Stil (Cel-Shaded + Bleistift-/Kreide-Kontur) oder Original vergleichbar.',
     defaultRadius: 2.6,
     minRadius: 1.3,
     maxRadius: 5.5,
