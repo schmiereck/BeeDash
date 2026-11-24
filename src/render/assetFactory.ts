@@ -25,6 +25,7 @@ import {
 export type ModelKey =
   | 'bee'
   | 'bee_higgsfield'
+  | 'bee_higgsfield_v2'
   | 'honeypot'
   | 'honeypot_higgsfield'
   | 'flower'

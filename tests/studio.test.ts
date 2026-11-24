@@ -30,6 +30,7 @@ describe('BeeDash 3D-Atelier Katalog & Builder', () => {
     expect(ids.has('alberta')).toBe(true);
     expect(ids.has('bee')).toBe(true);
     expect(ids.has('bee_higgsfield')).toBe(true);
+    expect(ids.has('bee_higgsfield_v2')).toBe(true);
 
     for (const sceneDef of SUITCASE_SCENES) {
       expect(ids.has(`scene_${sceneDef.id}`)).toBe(true);

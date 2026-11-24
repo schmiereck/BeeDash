@@ -453,9 +453,25 @@ export const STUDIO_ITEMS: StudioItemSpec[] = [
     id: 'bee_higgsfield',
     category: 'characters',
     emoji: '🧪',
-    label: 'Biene (Higgsfield 3D + Skelett)',
+    label: 'Biene (Seedream Original)',
     description:
-      'Aus deinen Seedream-Ansichten mit Higgsfield generierte Buch-Biene (.glb) inklusive 4-Knochen-Flügelskelett – teste Tricks, Honigkleber & Buch-Stil!',
+      'Originale 3/4-Seedream-Biene (.glb) mit 4-Knochen-Flügelskelett zum direkten Vergleich.',
+    defaultRadius: 2.7,
+    minRadius: 1.4,
+    maxRadius: 5.5,
+    targetY: 0.78,
+    defaultYaw: 0.45,
+    defaultPitch: 0.28,
+    pedestalRadius: 1.3,
+    isBee: true
+  },
+  {
+    id: 'bee_higgsfield_v2',
+    category: 'characters',
+    emoji: '✨',
+    label: 'Biene (Seedream – korrigiert)',
+    description:
+      'Reparierte Seedream-Biene (.glb): Flügel symmetrisch ausgerichtet & flacher gedreht, rundes Frau-Honig-Hinterteil und geglättete Wange.',
     defaultRadius: 2.7,
     minRadius: 1.4,
     maxRadius: 5.5,
@@ -545,7 +561,9 @@ export function buildStudioStageItem(
     const bee =
       item.id === 'bee_higgsfield'
         ? assets.createCustomModel('bee_higgsfield') ?? assets.createBee()
-        : assets.createBee();
+        : item.id === 'bee_higgsfield_v2'
+          ? assets.createCustomModel('bee_higgsfield_v2') ?? assets.createBee()
+          : assets.createBee();
     bee.scale.setScalar(1.45);
     bee.position.set(0, 0.78, 0);
     root.add(bee);
