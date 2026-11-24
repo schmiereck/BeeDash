@@ -25,6 +25,7 @@ import {
 export type ModelKey =
   | 'bee'
   | 'bee_higgsfield_multiview'
+  | 'bee_higgsfield_multiview_stripes'
   | 'bee_higgsfield'
   | 'bee_higgsfield_v2'
   | 'honeypot'

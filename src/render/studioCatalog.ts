@@ -466,6 +466,22 @@ export const STUDIO_ITEMS: StudioItemSpec[] = [
     isBee: true
   },
   {
+    id: 'bee_higgsfield_multiview_stripes',
+    category: 'characters',
+    emoji: '🦓',
+    label: 'Biene (Multiview – Streifen)',
+    description:
+      'Multiview-Seedream-Biene (.glb), bei der die 6 erhabenen 3D-Streifen-Drähte separiert, kopiert und nach innen in die 3 Streifen versetzt wurden.',
+    defaultRadius: 2.7,
+    minRadius: 1.4,
+    maxRadius: 5.5,
+    targetY: 0.78,
+    defaultYaw: 0.45,
+    defaultPitch: 0.28,
+    pedestalRadius: 1.3,
+    isBee: true
+  },
+  {
     id: 'bee_higgsfield',
     category: 'characters',
     emoji: '🧪',
@@ -577,11 +593,13 @@ export function buildStudioStageItem(
     const bee =
       item.id === 'bee_higgsfield_multiview'
         ? assets.createCustomModel('bee_higgsfield_multiview') ?? assets.createBee()
-        : item.id === 'bee_higgsfield'
-          ? assets.createCustomModel('bee_higgsfield') ?? assets.createBee()
-          : item.id === 'bee_higgsfield_v2'
-            ? assets.createCustomModel('bee_higgsfield_v2') ?? assets.createBee()
-            : assets.createBee();
+        : item.id === 'bee_higgsfield_multiview_stripes'
+          ? assets.createCustomModel('bee_higgsfield_multiview_stripes') ?? assets.createBee()
+          : item.id === 'bee_higgsfield'
+            ? assets.createCustomModel('bee_higgsfield') ?? assets.createBee()
+            : item.id === 'bee_higgsfield_v2'
+              ? assets.createCustomModel('bee_higgsfield_v2') ?? assets.createBee()
+              : assets.createBee();
     bee.scale.setScalar(1.45);
     bee.position.set(0, 0.78, 0);
     root.add(bee);
