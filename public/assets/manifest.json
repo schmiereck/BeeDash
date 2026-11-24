@@ -1,5 +1,7 @@
 {
-  "models": {},
+  "models": {
+    "honeypot_higgsfield": "assets/models/honigglas_higgsfield.glb"
+  },
   "characters": {},
   "audio": {}
 }

@@ -25,6 +25,7 @@ import {
 export type ModelKey =
   | 'bee'
   | 'honeypot'
+  | 'honeypot_higgsfield'
   | 'flower'
   | 'trapped_bee'
   | 'suitcase'
@@ -158,6 +159,15 @@ export class AssetFactory {
 
     wrapper.add(model);
     return wrapper;
+  }
+
+  createCustomModel(key: ModelKey): THREE.Group | null {
+    const custom = this.customModels.get(key);
+    if (!custom) return null;
+    const clone = custom.clone(true);
+    const group = clone instanceof THREE.Group ? clone : new THREE.Group().add(clone);
+    group.userData.isCustomModel = true;
+    return group;
   }
 
   createBee(): THREE.Group {

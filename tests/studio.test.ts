@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { AssetFactory } from '../src/render/assetFactory';
+import { applyStorybookCelShading } from '../src/render/celShading';
 import {
   buildStudioStageItem,
   disposeStudioInstance,
@@ -34,6 +35,7 @@ describe('BeeDash 3D-Atelier Katalog & Builder', () => {
     }
 
     for (const objId of [
+      'honeypot_higgsfield',
       'honeypot',
       'flower_0',
       'flower_1',
@@ -125,5 +127,38 @@ describe('BeeDash 3D-Atelier Katalog & Builder', () => {
 
       expect(() => disposeStudioInstance(instance)).not.toThrow();
     }
+  });
+
+  it('applies storybook cel-shading with hand-drawn outline hulls and restores cleanly', () => {
+    const group = new THREE.Group();
+    const bodyGeo = new THREE.CylinderGeometry(0.4, 0.45, 0.9, 16);
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0xe69f24, roughness: 0.4 });
+    const mesh = new THREE.Mesh(bodyGeo, bodyMat);
+    group.add(mesh);
+
+    const haloGeo = new THREE.SphereGeometry(0.6, 12, 10);
+    const haloMat = new THREE.MeshBasicMaterial({
+      color: 0xffe066,
+      transparent: true,
+      opacity: 0.25
+    });
+    const halo = new THREE.Mesh(haloGeo, haloMat);
+    group.add(halo);
+
+    const handle = applyStorybookCelShading(group);
+    expect(handle.convertedMaterialCount).toBe(1);
+    expect(handle.outlineCount).toBe(1);
+    expect(mesh.material).toBeInstanceOf(THREE.MeshToonMaterial);
+    expect(halo.material).toBe(haloMat);
+    expect(mesh.children.some((c) => c.userData.isCelOutline === true)).toBe(true);
+
+    handle.restore();
+    expect(mesh.material).toBe(bodyMat);
+    expect(mesh.children.some((c) => c.userData.isCelOutline === true)).toBe(false);
+
+    bodyGeo.dispose();
+    bodyMat.dispose();
+    haloGeo.dispose();
+    haloMat.dispose();
   });
 });

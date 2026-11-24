@@ -74,6 +74,21 @@ export const STUDIO_BEE_TRICKS: Array<{ id: StudioBeeTrick; emoji: string; label
 
 const STANDING_OBJECT_SPECS: StudioItemSpec[] = [
   {
+    id: 'honeypot_higgsfield',
+    category: 'objects',
+    emoji: '🧪',
+    label: 'Honigglas (Higgsfield 3D)',
+    description:
+      'Aus dem Buch-Scan mit Higgsfield generiertes 3D-Honigglas (.glb) – im Buch-Stil (Cel-Shaded + Tusche-Kontur) oder Original vergleichbar.',
+    defaultRadius: 2.6,
+    minRadius: 1.3,
+    maxRadius: 5.5,
+    targetY: 0.62,
+    defaultYaw: 0.3,
+    defaultPitch: 0.25,
+    pedestalRadius: 1.35
+  },
+  {
     id: 'honeypot',
     category: 'objects',
     emoji: '🍯',
@@ -692,6 +707,11 @@ export function buildStudioStageItem(
   let standing = true;
 
   switch (item.id) {
+    case 'honeypot_higgsfield':
+      obj =
+        assets.createCustomModel('honeypot_higgsfield') ??
+        assets.createTileObject('honeypot');
+      break;
     case 'honeypot':
       obj = assets.createTileObject('honeypot');
       break;

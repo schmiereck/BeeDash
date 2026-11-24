@@ -1,6 +1,10 @@
 import * as THREE from 'three';
 import { AssetFactory } from './assetFactory';
 import {
+  applyStorybookCelShading,
+  CelShadingHandle
+} from './celShading';
+import {
   buildStudioStageItem,
   disposeStudioInstance,
   STUDIO_BEE_TRICKS,
@@ -47,6 +51,7 @@ export class StudioOverlay {
 
   private animPaused = false;
   private autoRotate = true;
+  private celShaded = true;
   private elapsed = 0;
   private revealElapsed = 0;
 
@@ -73,6 +78,7 @@ export class StudioOverlay {
   private pedestalTopMat: THREE.MeshStandardMaterial | null = null;
   private pedestalRimMat: THREE.MeshStandardMaterial | null = null;
   private instance: StudioStageInstance | null = null;
+  private celHandle: CelShadingHandle | null = null;
 
   // DOM handles
   private canvasWrapEl: HTMLElement | null = null;
@@ -83,6 +89,7 @@ export class StudioOverlay {
   private itemDescEl: HTMLElement | null = null;
   private pauseBtnEl: HTMLButtonElement | null = null;
   private autoRotateBtnEl: HTMLButtonElement | null = null;
+  private celBtnEl: HTMLButtonElement | null = null;
 
   // Bound event listeners
   private boundPointerDown = (e: PointerEvent) => this.handlePointerDown(e);
@@ -154,6 +161,7 @@ export class StudioOverlay {
               <div class="studio-controls-row">
                 <button id="studio-pause-btn" class="studio-pill-btn" type="button">⏸️ Pause</button>
                 <button id="studio-autorotate-btn" class="studio-pill-btn active" type="button">🔁 Auto-Drehen: An</button>
+                <button id="studio-cel-btn" class="studio-pill-btn active" type="button">🖍️ Buch-Stil: An</button>
                 <button id="studio-zoom-out" class="studio-pill-btn" type="button" aria-label="Herauszoomen">➖</button>
                 <button id="studio-zoom-in" class="studio-pill-btn" type="button" aria-label="Heranzoomen">➕</button>
                 <button id="studio-reset-view" class="studio-pill-btn" type="button">🎯 Ansicht zurücksetzen</button>
@@ -174,6 +182,7 @@ export class StudioOverlay {
     this.itemDescEl = this.root.querySelector('#studio-item-desc');
     this.pauseBtnEl = this.root.querySelector('#studio-pause-btn');
     this.autoRotateBtnEl = this.root.querySelector('#studio-autorotate-btn');
+    this.celBtnEl = this.root.querySelector('#studio-cel-btn');
 
     this.root.querySelector('#studio-close-btn')?.addEventListener('click', () => {
       this.close();
@@ -187,6 +196,13 @@ export class StudioOverlay {
     this.autoRotateBtnEl?.addEventListener('click', () => {
       this.autoRotate = !this.autoRotate;
       this.syncPlaybackButtons();
+    });
+
+    this.celBtnEl?.addEventListener('click', () => {
+      this.celShaded = !this.celShaded;
+      this.applyCelShadingMode();
+      this.syncPlaybackButtons();
+      this.renderFrame();
     });
 
     this.root.querySelector('#studio-zoom-out')?.addEventListener('click', () => {
@@ -412,6 +428,9 @@ export class StudioOverlay {
   private selectItem(spec: StudioItemSpec, resetView: boolean): void {
     if (!this.scene) return;
 
+    this.celHandle?.restore();
+    this.celHandle = null;
+
     if (this.instance) {
       this.scene.remove(this.instance.root);
       disposeStudioInstance(this.instance);
@@ -460,10 +479,19 @@ export class StudioOverlay {
       beeTrick: null
     });
 
+    this.applyCelShadingMode();
     this.renderItemList();
     this.renderContextBar();
     this.updateCameraTransform();
     this.renderFrame();
+  }
+
+  private applyCelShadingMode(): void {
+    this.celHandle?.restore();
+    this.celHandle = null;
+    if (this.celShaded && this.instance) {
+      this.celHandle = applyStorybookCelShading(this.instance.root);
+    }
   }
 
   private renderContextBar(): void {
@@ -646,6 +674,12 @@ export class StudioOverlay {
         : '🔁 Auto-Drehen: Aus';
       this.autoRotateBtnEl.classList.toggle('active', this.autoRotate);
     }
+    if (this.celBtnEl) {
+      this.celBtnEl.textContent = this.celShaded
+        ? '🖍️ Buch-Stil: An'
+        : '🖍️ Buch-Stil: Aus';
+      this.celBtnEl.classList.toggle('active', this.celShaded);
+    }
   }
 
   private resetCameraToItem(spec: StudioItemSpec): void {
@@ -749,6 +783,9 @@ export class StudioOverlay {
     this.isDragging = false;
     this.activePointerId = null;
 
+    this.celHandle?.restore();
+    this.celHandle = null;
+
     if (this.instance && this.scene) {
       this.scene.remove(this.instance.root);
     }
@@ -785,5 +822,6 @@ export class StudioOverlay {
     this.itemDescEl = null;
     this.pauseBtnEl = null;
     this.autoRotateBtnEl = null;
+    this.celBtnEl = null;
   }
 }
