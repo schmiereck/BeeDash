@@ -469,6 +469,23 @@ export const STUDIO_ITEMS: StudioItemSpec[] = [
     characterKey: 'alberta'
   },
   {
+    id: 'alberta_higgsfield',
+    category: 'characters',
+    emoji: '✨',
+    label: 'Alberta (Higgsfield 3D)',
+    description:
+      'Aus dem orthographischen 3-Ansichten-Turnaround mit Higgsfield erzeugte und geriggte 3D-Alberta (.glb) zum direkten Vergleich.',
+    defaultRadius: 3.1,
+    minRadius: 1.5,
+    maxRadius: 6.0,
+    targetY: 0.72,
+    defaultYaw: 0.38,
+    defaultPitch: 0.25,
+    pedestalRadius: 1.35,
+    characterKey: 'alberta',
+    customCharacterAssetKey: 'alberta_higgsfield'
+  },
+  {
     id: 'bee',
     category: 'characters',
     emoji: '🐝',

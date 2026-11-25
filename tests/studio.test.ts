@@ -30,6 +30,7 @@ describe('BeeDash 3D-Atelier Katalog & Builder', () => {
     expect(ids.has('child_girl')).toBe(true);
     expect(ids.has('child_boy')).toBe(true);
     expect(ids.has('alberta')).toBe(true);
+    expect(ids.has('alberta_higgsfield')).toBe(true);
     expect(ids.has('bee')).toBe(true);
     expect(ids.has('bee_higgsfield_multiview')).toBe(true);
     expect(ids.has('bee_higgsfield_multiview_stripes')).toBe(true);
