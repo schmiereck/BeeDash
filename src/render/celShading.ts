@@ -12,14 +12,14 @@ export interface CelShadingOptions {
 }
 
 export const DEFAULT_CEL_SHADING_OPTIONS: Required<CelShadingOptions> = {
-  outlineColor: 0x4b3b30,
-  outlineThickness: 0.016,
-  outlineOpacity: 0.82,
-  roundness: 0.72,
-  grainStrength: 0.42,
-  wobbleAmp: 0.45,
-  wobbleFreq: 16.0,
-  shadowLift: 0.48
+  outlineColor: 0x221811,
+  outlineThickness: 0.01,
+  outlineOpacity: 0.76,
+  roundness: 0.82,
+  grainStrength: 0.54,
+  wobbleAmp: 0.42,
+  wobbleFreq: 7,
+  shadowLift: 0.9
 };
 
 export interface CelShadingHandle {
