@@ -887,6 +887,7 @@ function animateProceduralRig(rig: CharacterRig, t: number, pose: CharacterPose)
 type BoneRestEntry = {
   bone: THREE.Bone;
   restLocalQuat: THREE.Quaternion;
+  restRel: THREE.Quaternion;
   restRelInv: THREE.Quaternion;
 };
 
@@ -907,10 +908,6 @@ type HumanoidBones = {
   rightUpLeg?: BoneRestEntry;
   rightLeg?: BoneRestEntry;
 };
-
-const CHAR_AXIS_X = new THREE.Vector3(1, 0, 0);
-const CHAR_AXIS_Y = new THREE.Vector3(0, 1, 0);
-const CHAR_AXIS_Z = new THREE.Vector3(0, 0, 1);
 
 function findHumanoidBone(
   byName: Map<string, BoneRestEntry>,
@@ -946,7 +943,8 @@ function createHumanoidBoneDriver(
       byName.set(obj.name.toLowerCase(), {
         bone: obj as THREE.Bone,
         restLocalQuat: obj.quaternion.clone(),
-        restRelInv: restRel.invert()
+        restRel,
+        restRelInv: restRel.clone().invert()
       });
     }
   });
@@ -973,18 +971,24 @@ function createHumanoidBoneDriver(
   if (allEntries.length < 4) return null;
 
   const baseHipsPos = bones.hips ? bones.hips.bone.position.clone() : null;
-  const localAxis = new THREE.Vector3();
-  const deltaQ = new THREE.Quaternion();
+  const charEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+  const charDeltaQ = new THREE.Quaternion();
 
-  const rotateBone = (
+  const applyCharEuler = (
     entry: BoneRestEntry | undefined,
-    charAxis: THREE.Vector3,
-    angle: number
+    rx: number,
+    ry: number,
+    rz: number
   ): void => {
-    if (!entry || Math.abs(angle) < 1e-5) return;
-    localAxis.copy(charAxis).applyQuaternion(entry.restRelInv).normalize();
-    deltaQ.setFromAxisAngle(localAxis, angle);
-    entry.bone.quaternion.multiply(deltaQ);
+    if (!entry) return;
+    if (Math.abs(rx) < 1e-5 && Math.abs(ry) < 1e-5 && Math.abs(rz) < 1e-5) return;
+    charEuler.set(rx, ry, rz, 'YXZ');
+    charDeltaQ.setFromEuler(charEuler);
+    entry.bone.quaternion
+      .copy(entry.restLocalQuat)
+      .multiply(entry.restRelInv)
+      .multiply(charDeltaQ)
+      .multiply(entry.restRel);
   };
 
   return (t: number, pose: CharacterPose): void => {
@@ -995,94 +999,101 @@ function createHumanoidBoneDriver(
       bones.hips.bone.position.copy(baseHipsPos);
     }
 
-    // Bring A-pose arms gently down toward natural resting posture unless raised
-    let leftArmUp = -0.32;
-    let leftArmFwd = 0.08;
-    let leftElbowBend = 0.22;
-    let rightArmUp = -0.32;
-    let rightArmFwd = 0.08;
-    let rightElbowBend = 0.22;
+    // Gentle default resting posture from A-pose without pulling coat armpits
+    let leftArmUp = -0.34;
+    let leftArmFwd = 0.06;
+    let leftElbowUp = 0.08;
+    let leftElbowFwd = 0.14;
+    let rightArmUp = -0.34;
+    let rightArmFwd = 0.06;
+    let rightElbowUp = 0.08;
+    let rightElbowFwd = 0.14;
     let hipHop = 0;
 
     switch (pose) {
       case 'wave': {
         hipHop = Math.abs(Math.sin(t * 2.4)) * 1.4;
-        rotateBone(bones.chest, CHAR_AXIS_Z, Math.sin(t * 2.0) * 0.04);
-        rotateBone(bones.head, CHAR_AXIS_Z, Math.sin(t * 1.8) * 0.08);
-        rotateBone(bones.head, CHAR_AXIS_Y, Math.sin(t * 1.2) * 0.12);
-        leftArmUp = -0.42 + Math.sin(t * 2.2) * 0.05;
-        rightArmUp = 1.65 + Math.sin(t * 6.0) * 0.28;
-        rightArmFwd = 0.25;
-        rightElbowBend = 0.55 + Math.sin(t * 6.0) * 0.22;
+        applyCharEuler(bones.chest, 0, 0, Math.sin(t * 2.0) * 0.04);
+        applyCharEuler(bones.head, 0, Math.sin(t * 1.2) * 0.12, Math.sin(t * 1.8) * 0.08);
+        rightArmUp = 0.58;
+        rightArmFwd = 0.28;
+        rightElbowUp = 1.15 + Math.sin(t * 6.0) * 0.24;
+        rightElbowFwd = 0.25;
         break;
       }
       case 'cheer': {
         const hop = Math.abs(Math.sin(t * 4.4));
-        hipHop = hop * 4.5;
-        rotateBone(bones.chest, CHAR_AXIS_Z, Math.sin(t * 2.2) * 0.06);
-        rotateBone(bones.head, CHAR_AXIS_Z, Math.sin(t * 3.0) * 0.09);
-        leftArmUp = 1.62 + Math.sin(t * 5.4) * 0.22;
-        rightArmUp = 1.62 + Math.sin(t * 5.4) * 0.22;
-        leftArmFwd = 0.2;
-        rightArmFwd = 0.2;
-        leftElbowBend = 0.35;
-        rightElbowBend = 0.35;
-        rotateBone(bones.leftUpLeg, CHAR_AXIS_X, -hop * 0.2);
-        rotateBone(bones.leftLeg, CHAR_AXIS_X, hop * 0.28);
-        rotateBone(bones.rightUpLeg, CHAR_AXIS_X, hop * 0.14);
+        hipHop = hop * 3.8;
+        applyCharEuler(bones.chest, 0, 0, Math.sin(t * 2.2) * 0.05);
+        applyCharEuler(bones.head, 0, 0, Math.sin(t * 3.0) * 0.09);
+        leftArmUp = 0.82 + Math.sin(t * 5.4) * 0.12;
+        rightArmUp = 0.82 + Math.sin(t * 5.4) * 0.12;
+        leftArmFwd = 0.18;
+        rightArmFwd = 0.18;
+        leftElbowUp = 0.82 + Math.sin(t * 5.4) * 0.14;
+        rightElbowUp = 0.82 + Math.sin(t * 5.4) * 0.14;
+        leftElbowFwd = 0.22;
+        rightElbowFwd = 0.22;
+        applyCharEuler(bones.leftUpLeg, -hop * 0.2, 0, 0);
+        applyCharEuler(bones.leftLeg, hop * 0.28, 0, 0);
+        applyCharEuler(bones.rightUpLeg, hop * 0.14, 0, 0);
         break;
       }
       case 'sip_tea': {
         hipHop = Math.sin(t * 2.0) * 0.8;
-        rotateBone(bones.chest, CHAR_AXIS_Z, Math.sin(t * 1.6) * 0.04);
-        rotateBone(bones.head, CHAR_AXIS_X, 0.08 + Math.sin(t * 2.4) * 0.07);
-        rotateBone(bones.head, CHAR_AXIS_Y, Math.sin(t * 1.3) * 0.12);
-        rightArmUp = -0.22;
-        rightArmFwd = 0.72 + Math.sin(t * 2.6) * 0.18;
-        rightElbowBend = 1.05 + Math.sin(t * 2.6) * 0.22;
-        leftArmUp = -0.45;
+        applyCharEuler(bones.chest, 0, 0, Math.sin(t * 1.6) * 0.04);
+        applyCharEuler(bones.head, 0.08 + Math.sin(t * 2.4) * 0.07, Math.sin(t * 1.3) * 0.12, 0);
+        leftArmUp = -0.38;
+        leftElbowFwd = 0.18;
+        rightArmUp = -0.18;
+        rightArmFwd = 0.48;
+        rightElbowUp = 0.68 + Math.sin(t * 2.6) * 0.16;
+        rightElbowFwd = 0.65;
         break;
       }
       case 'fly_umbrella': {
-        rotateBone(bones.spineLower, CHAR_AXIS_X, 0.09 + Math.sin(t * 2.3) * 0.05);
-        rotateBone(bones.head, CHAR_AXIS_X, -0.1 + Math.sin(t * 2.0) * 0.05);
-        leftArmUp = 1.52;
-        rightArmUp = 1.52;
-        leftArmFwd = 0.55;
-        rightArmFwd = 0.55;
-        leftElbowBend = 0.45;
-        rightElbowBend = 0.45;
-        rotateBone(bones.leftUpLeg, CHAR_AXIS_X, Math.sin(t * 3.6) * 0.24 - 0.08);
-        rotateBone(bones.rightUpLeg, CHAR_AXIS_X, -Math.sin(t * 3.6) * 0.24 - 0.08);
-        rotateBone(bones.leftLeg, CHAR_AXIS_X, 0.22 + Math.max(0, Math.sin(t * 3.6)) * 0.2);
-        rotateBone(bones.rightLeg, CHAR_AXIS_X, 0.22 + Math.max(0, -Math.sin(t * 3.6)) * 0.2);
+        applyCharEuler(bones.spineLower, 0.09 + Math.sin(t * 2.3) * 0.05, 0, 0);
+        applyCharEuler(bones.head, -0.1 + Math.sin(t * 2.0) * 0.05, 0, 0);
+        leftArmUp = 0.78;
+        rightArmUp = 0.78;
+        leftArmFwd = 0.52;
+        rightArmFwd = 0.52;
+        leftElbowUp = 0.82;
+        rightElbowUp = 0.82;
+        leftElbowFwd = 0.38;
+        rightElbowFwd = 0.38;
+        applyCharEuler(bones.leftUpLeg, Math.sin(t * 3.6) * 0.24 - 0.08, 0, 0);
+        applyCharEuler(bones.rightUpLeg, -Math.sin(t * 3.6) * 0.24 - 0.08, 0, 0);
+        applyCharEuler(bones.leftLeg, 0.22 + Math.max(0, Math.sin(t * 3.6)) * 0.2, 0, 0);
+        applyCharEuler(bones.rightLeg, 0.22 + Math.max(0, -Math.sin(t * 3.6)) * 0.2, 0, 0);
         break;
       }
       case 'blow_bubbles': {
-        rotateBone(bones.chest, CHAR_AXIS_Z, -0.04 + Math.sin(t * 1.9) * 0.04);
-        rotateBone(bones.head, CHAR_AXIS_Y, -0.16 + Math.sin(t * 1.7) * 0.1);
-        rotateBone(bones.head, CHAR_AXIS_X, -0.1);
-        leftArmUp = -0.12;
-        leftArmFwd = 0.68 + Math.sin(t * 1.9) * 0.22;
-        leftElbowBend = 0.92;
-        rightArmUp = -0.25 + Math.sin(t * 2.5) * 0.12;
+        applyCharEuler(bones.chest, 0, 0, -0.04 + Math.sin(t * 1.9) * 0.04);
+        applyCharEuler(bones.head, -0.1, -0.16 + Math.sin(t * 1.7) * 0.1, 0);
+        leftArmUp = 0.12;
+        leftArmFwd = 0.52;
+        leftElbowUp = 0.72;
+        leftElbowFwd = 0.58;
+        rightArmUp = -0.24 + Math.sin(t * 2.5) * 0.12;
         break;
       }
       case 'sit_stargaze': {
-        rotateBone(bones.hips, CHAR_AXIS_X, -0.08);
-        rotateBone(bones.chest, CHAR_AXIS_Z, Math.sin(t * 1.2) * 0.025);
-        rotateBone(bones.head, CHAR_AXIS_X, -0.22 + Math.sin(t * 1.1) * 0.05);
-        rotateBone(bones.head, CHAR_AXIS_Y, Math.sin(t * 0.85) * 0.15);
-        rotateBone(bones.leftUpLeg, CHAR_AXIS_X, -Math.PI * 0.36);
-        rotateBone(bones.rightUpLeg, CHAR_AXIS_X, -Math.PI * 0.36);
-        rotateBone(bones.leftLeg, CHAR_AXIS_X, Math.PI * 0.38);
-        rotateBone(bones.rightLeg, CHAR_AXIS_X, Math.PI * 0.38);
-        leftArmUp = -0.38;
-        rightArmUp = -0.38;
+        applyCharEuler(bones.hips, -0.08, 0, 0);
+        applyCharEuler(bones.chest, 0, 0, Math.sin(t * 1.2) * 0.025);
+        applyCharEuler(bones.head, -0.22 + Math.sin(t * 1.1) * 0.05, Math.sin(t * 0.85) * 0.15, 0);
+        applyCharEuler(bones.leftUpLeg, -0.95, 0, 0);
+        applyCharEuler(bones.rightUpLeg, -0.95, 0, 0);
+        applyCharEuler(bones.leftLeg, 0.95, 0, 0);
+        applyCharEuler(bones.rightLeg, 0.95, 0, 0);
+        leftArmUp = -0.34;
+        rightArmUp = -0.34;
         leftArmFwd = 0.22;
         rightArmFwd = 0.22;
-        leftElbowBend = 0.42;
-        rightElbowBend = 0.42;
+        leftElbowUp = 0.2;
+        rightElbowUp = 0.2;
+        leftElbowFwd = 0.34;
+        rightElbowFwd = 0.34;
         break;
       }
     }
@@ -1090,12 +1101,10 @@ function createHumanoidBoneDriver(
     if (bones.hips && baseHipsPos && hipHop !== 0) {
       bones.hips.bone.position.y = baseHipsPos.y + hipHop;
     }
-    rotateBone(bones.leftArm, CHAR_AXIS_Z, leftArmUp);
-    rotateBone(bones.leftArm, CHAR_AXIS_Y, -leftArmFwd);
-    rotateBone(bones.leftForeArm, CHAR_AXIS_Y, -leftElbowBend);
-    rotateBone(bones.rightArm, CHAR_AXIS_Z, -rightArmUp);
-    rotateBone(bones.rightArm, CHAR_AXIS_Y, rightArmFwd);
-    rotateBone(bones.rightForeArm, CHAR_AXIS_Y, rightElbowBend);
+    applyCharEuler(bones.leftArm, 0, -leftArmFwd, leftArmUp);
+    applyCharEuler(bones.leftForeArm, 0, -leftElbowFwd, leftElbowUp);
+    applyCharEuler(bones.rightArm, 0, rightArmFwd, -rightArmUp);
+    applyCharEuler(bones.rightForeArm, 0, rightElbowFwd, -rightElbowUp);
   };
 }
 

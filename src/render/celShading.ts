@@ -27,7 +27,7 @@ uniform float uThickness;
 uniform float uWobbleAmp;
 uniform float uWobbleFreq;
 
-varying vec3 vLocalPos;
+varying vec3 vWorldPos;
 varying vec3 vViewNormal;
 varying vec3 vViewDir;
 
@@ -42,19 +42,23 @@ float organicWave(vec3 p) {
 void main() {
   float nLen = length(normal);
   vec3 objectNormal = nLen > 0.0001 ? normal / nLen : normalize(position + vec3(0.0001));
-  float w = organicWave(position * uWobbleFreq);
-  float disp = uThickness * (1.0 + uWobbleAmp * w);
-  vec3 transformed = position + objectNormal * disp;
+  vec3 transformed = position;
 
   #include <skinbase_vertex>
   #include <skinnormal_vertex>
   #include <skinning_vertex>
 
+  vec4 worldPos4 = modelMatrix * vec4(transformed, 1.0);
+  vWorldPos = worldPos4.xyz;
+
   vec3 viewN = normalMatrix * objectNormal;
   vViewNormal = length(viewN) > 0.0001 ? normalize(viewN) : vec3(0.0, 0.0, 1.0);
-  vLocalPos = position;
+
+  float w = organicWave(vWorldPos * uWobbleFreq);
+  float disp = uThickness * (1.0 + uWobbleAmp * w);
 
   vec4 mvPos = modelViewMatrix * vec4(transformed, 1.0);
+  mvPos.xyz += vViewNormal * disp;
   vViewDir = normalize(-mvPos.xyz);
   gl_Position = projectionMatrix * mvPos;
 }
@@ -66,7 +70,7 @@ uniform float uOpacity;
 uniform float uGrainStrength;
 uniform float uWobbleFreq;
 
-varying vec3 vLocalPos;
+varying vec3 vWorldPos;
 varying vec3 vViewNormal;
 varying vec3 vViewDir;
 
@@ -100,8 +104,8 @@ float valueNoise3(vec3 p) {
 }
 
 void main() {
-  float n1 = valueNoise3(vLocalPos * (uWobbleFreq * 2.2));
-  float n2 = valueNoise3(vLocalPos * (uWobbleFreq * 5.1) + vec3(7.3, 2.9, 5.1));
+  float n1 = valueNoise3(vWorldPos * (uWobbleFreq * 2.2));
+  float n2 = valueNoise3(vWorldPos * (uWobbleFreq * 5.1) + vec3(7.3, 2.9, 5.1));
   float tooth = mix(n1, n2, 0.45);
   float pigment = mix(1.0, smoothstep(0.18, 0.85, tooth), uGrainStrength);
 
@@ -174,7 +178,7 @@ export function applyStorybookCelShading(
   options: CelShadingOptions = {}
 ): CelShadingHandle {
   const outlineColor = options.outlineColor ?? 0x4b3b30;
-  const outlineThickness = options.outlineThickness ?? 0.020;
+  const outlineThickness = options.outlineThickness ?? 0.016;
   const outlineOpacity = options.outlineOpacity ?? 0.82;
   const grainStrength = options.grainStrength ?? 0.42;
   const wobbleAmp = options.wobbleAmp ?? 0.45;
@@ -196,7 +200,6 @@ export function applyStorybookCelShading(
     candidateMeshes.push(mesh);
   });
 
-  const worldScale = new THREE.Vector3();
   const colorVec = new THREE.Color(outlineColor);
 
   for (const mesh of candidateMeshes) {
@@ -235,17 +238,10 @@ export function applyStorybookCelShading(
     const isSkinned =
       mesh instanceof THREE.SkinnedMesh || Boolean((mesh as THREE.SkinnedMesh).isSkinnedMesh);
     if (hasOpaqueSurface && mesh.geometry) {
-      mesh.getWorldScale(worldScale);
-      const avgScale = Math.max(
-        0.001,
-        (Math.abs(worldScale.x) + Math.abs(worldScale.y) + Math.abs(worldScale.z)) / 3
-      );
-      const localThickness = outlineThickness / avgScale;
-
       const outlineMat = new THREE.ShaderMaterial({
         uniforms: {
           uColor: { value: colorVec },
-          uThickness: { value: localThickness },
+          uThickness: { value: outlineThickness },
           uOpacity: { value: outlineOpacity },
           uGrainStrength: { value: grainStrength },
           uWobbleAmp: { value: wobbleAmp },

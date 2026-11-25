@@ -176,14 +176,18 @@ describe('BeeDash 3D-Atelier Katalog & Builder', () => {
     haloMat.dispose();
   });
 
-  it('creates bound SkinnedMesh outlines with cel-shading and verifies rigged bee GLB structure', () => {
+  it('creates bound SkinnedMesh outlines with cel-shading even under 0.01 Armature scaling', () => {
     const root = new THREE.Group();
+    const armature = new THREE.Group();
+    armature.scale.setScalar(0.01);
+    root.add(armature);
+
     const boneRoot = new THREE.Bone();
     const wingL = new THREE.Bone();
     boneRoot.add(wingL);
-    root.add(boneRoot);
+    armature.add(boneRoot);
 
-    const geo = new THREE.BoxGeometry(0.4, 0.2, 0.2);
+    const geo = new THREE.BoxGeometry(40, 20, 20);
     const count = geo.attributes.position.count;
     geo.setAttribute(
       'skinIndex',
@@ -196,21 +200,23 @@ describe('BeeDash 3D-Atelier Katalog & Builder', () => {
     const mat = new THREE.MeshStandardMaterial({ color: 0xe8ab54 });
     const skinned = new THREE.SkinnedMesh(geo, mat);
     skinned.bind(new THREE.Skeleton([boneRoot, wingL]));
-    root.add(skinned);
+    armature.add(skinned);
 
     const handle = applyStorybookCelShading(root);
     expect(handle.convertedMaterialCount).toBe(1);
     expect(handle.outlineCount).toBe(1);
-    const skinnedOutline = root.children.find(
+    const skinnedOutline = armature.children.find(
       (c): c is THREE.SkinnedMesh =>
         c instanceof THREE.SkinnedMesh && c.userData.isCelOutline === true
     );
     expect(skinnedOutline).toBeDefined();
     expect(skinnedOutline!.skeleton).toBe(skinned.skeleton);
+    const outlineMat = skinnedOutline!.material as THREE.ShaderMaterial;
+    expect(outlineMat.uniforms.uThickness.value).toBeLessThan(0.05);
 
     handle.restore();
     expect(
-      root.children.some((c) => c.userData.isCelOutline === true)
+      armature.children.some((c) => c.userData.isCelOutline === true)
     ).toBe(false);
     geo.dispose();
     mat.dispose();
