@@ -4,16 +4,30 @@ export interface CelShadingOptions {
   outlineColor?: number;
   outlineThickness?: number;
   outlineOpacity?: number;
+  roundness?: number;
   grainStrength?: number;
   wobbleAmp?: number;
   wobbleFreq?: number;
+  shadowLift?: number;
 }
+
+export const DEFAULT_CEL_SHADING_OPTIONS: Required<CelShadingOptions> = {
+  outlineColor: 0x4b3b30,
+  outlineThickness: 0.016,
+  outlineOpacity: 0.82,
+  roundness: 0.72,
+  grainStrength: 0.42,
+  wobbleAmp: 0.45,
+  wobbleFreq: 16.0,
+  shadowLift: 0.48
+};
 
 export interface CelShadingHandle {
   ownedMaterials: THREE.Material[];
   ownedTextures: THREE.Texture[];
   outlineCount: number;
   convertedMaterialCount: number;
+  updateOptions: (partial: CelShadingOptions) => void;
   restore: () => void;
 }
 
@@ -23,7 +37,10 @@ interface MaterialBackup {
 }
 
 const OUTLINE_VERTEX_SHADER = `
+attribute vec3 aSmoothNormal;
+
 uniform float uThickness;
+uniform float uRoundness;
 uniform float uWobbleAmp;
 uniform float uWobbleFreq;
 
@@ -41,7 +58,11 @@ float organicWave(vec3 p) {
 
 void main() {
   float nLen = length(normal);
-  vec3 objectNormal = nLen > 0.0001 ? normal / nLen : normalize(position + vec3(0.0001));
+  vec3 rawN = nLen > 0.0001 ? normal / nLen : normalize(position + vec3(0.0001));
+  float sLen = length(aSmoothNormal);
+  vec3 smoothN = sLen > 0.0001 ? aSmoothNormal / sLen : rawN;
+  float rMix = clamp(uRoundness, 0.0, 1.0);
+  vec3 objectNormal = normalize(mix(rawN, smoothN, rMix));
   vec3 transformed = position;
 
   #include <skinbase_vertex>
@@ -54,11 +75,15 @@ void main() {
   vec3 viewN = normalMatrix * objectNormal;
   vViewNormal = length(viewN) > 0.0001 ? normalize(viewN) : vec3(0.0, 0.0, 1.0);
 
-  float w = organicWave(vWorldPos * uWobbleFreq);
-  float disp = uThickness * (1.0 + uWobbleAmp * w);
-
   vec4 mvPos = modelViewMatrix * vec4(transformed, 1.0);
+  vec3 preViewDir = normalize(-mvPos.xyz);
+  float sil = clamp(1.0 - abs(dot(vViewNormal, preViewDir)), 0.0, 1.0);
+  float roundFactor = mix(1.0, 0.55 + 0.45 * pow(sil, 0.55), rMix);
+  float w = organicWave(vWorldPos * uWobbleFreq);
+  float disp = uThickness * roundFactor * (1.0 + uWobbleAmp * w);
+
   mvPos.xyz += vViewNormal * disp;
+  mvPos.z -= uThickness * 0.22 * rMix;
   vViewDir = normalize(-mvPos.xyz);
   gl_Position = projectionMatrix * mvPos;
 }
@@ -67,6 +92,7 @@ void main() {
 const OUTLINE_FRAGMENT_SHADER = `
 uniform vec3 uColor;
 uniform float uOpacity;
+uniform float uRoundness;
 uniform float uGrainStrength;
 uniform float uWobbleFreq;
 
@@ -110,7 +136,10 @@ void main() {
   float pigment = mix(1.0, smoothstep(0.18, 0.85, tooth), uGrainStrength);
 
   float ndotv = abs(dot(normalize(vViewNormal), normalize(vViewDir)));
-  float feather = smoothstep(0.0, 0.38, ndotv);
+  float rMix = clamp(uRoundness, 0.0, 1.0);
+  float edgeWidth = mix(0.24, 0.62, rMix);
+  float feather = smoothstep(0.0, edgeWidth, ndotv);
+  feather = mix(feather, pow(feather, 1.45), rMix);
   float alpha = clamp(uOpacity * feather * pigment, 0.0, 1.0);
   if (alpha < 0.03) discard;
 
@@ -119,12 +148,94 @@ void main() {
 }
 `;
 
+const SMOOTH_OUTLINE_GEO_CACHE = new WeakMap<THREE.BufferGeometry, THREE.BufferGeometry>();
+
+function getSmoothOutlineGeometry(srcGeo: THREE.BufferGeometry): THREE.BufferGeometry {
+  const cached = SMOOTH_OUTLINE_GEO_CACHE.get(srcGeo);
+  if (cached) return cached;
+
+  const outGeo = new THREE.BufferGeometry();
+  for (const [key, attr] of Object.entries(srcGeo.attributes)) {
+    outGeo.setAttribute(key, attr);
+  }
+  if (srcGeo.index) outGeo.setIndex(srcGeo.index);
+  for (const grp of srcGeo.groups) {
+    outGeo.addGroup(grp.start, grp.count, grp.materialIndex);
+  }
+  outGeo.setDrawRange(srcGeo.drawRange.start, srcGeo.drawRange.count);
+  if (srcGeo.boundingBox) outGeo.boundingBox = srcGeo.boundingBox.clone();
+  if (srcGeo.boundingSphere) outGeo.boundingSphere = srcGeo.boundingSphere.clone();
+
+  const posAttr = srcGeo.getAttribute('position');
+  const normAttr = srcGeo.getAttribute('normal');
+  if (posAttr) {
+    const count = posAttr.count;
+    const smoothArr = new Float32Array(count * 3);
+    const accum = new Map<string, [number, number, number]>();
+    const keys = new Array<string>(count);
+
+    for (let i = 0; i < count; i++) {
+      const px = posAttr.getX(i);
+      const py = posAttr.getY(i);
+      const pz = posAttr.getZ(i);
+      const k = `${Math.round(px * 10000)},${Math.round(py * 10000)},${Math.round(pz * 10000)}`;
+      keys[i] = k;
+
+      let nx = normAttr ? normAttr.getX(i) : px;
+      let ny = normAttr ? normAttr.getY(i) : py;
+      let nz = normAttr ? normAttr.getZ(i) : pz;
+      const nLen = Math.hypot(nx, ny, nz);
+      if (nLen > 1e-5) {
+        nx /= nLen;
+        ny /= nLen;
+        nz /= nLen;
+      }
+
+      const sum = accum.get(k);
+      if (sum) {
+        sum[0] += nx;
+        sum[1] += ny;
+        sum[2] += nz;
+      } else {
+        accum.set(k, [nx, ny, nz]);
+      }
+    }
+
+    for (let i = 0; i < count; i++) {
+      const sum = accum.get(keys[i])!;
+      const len = Math.hypot(sum[0], sum[1], sum[2]) || 1;
+      smoothArr[i * 3] = sum[0] / len;
+      smoothArr[i * 3 + 1] = sum[1] / len;
+      smoothArr[i * 3 + 2] = sum[2] / len;
+    }
+
+    outGeo.setAttribute('aSmoothNormal', new THREE.BufferAttribute(smoothArr, 3));
+  }
+
+  SMOOTH_OUTLINE_GEO_CACHE.set(srcGeo, outGeo);
+  return outGeo;
+}
+
+function writeGradientBands(data: Uint8Array, shadowLift: number): void {
+  const low = THREE.MathUtils.clamp(shadowLift, 0.15, 0.95);
+  const b0 = Math.round(low * 255);
+  const b1 = Math.round(THREE.MathUtils.lerp(low, 1.0, 0.42) * 255);
+  const b2 = Math.round(THREE.MathUtils.lerp(low, 1.0, 0.76) * 255);
+  data[0] = b0;
+  data[1] = b1;
+  data[2] = b2;
+  data[3] = 255;
+}
+
 /**
  * Generates a gentle 4-step grayscale DataTexture for Three.js MeshToonMaterial
  * to match warm watercolor / colored-pencil storybook illustrations.
  */
-export function createStorybookGradientMap(): THREE.DataTexture {
-  const bands = new Uint8Array([122, 178, 224, 255]);
+export function createStorybookGradientMap(
+  shadowLift = DEFAULT_CEL_SHADING_OPTIONS.shadowLift
+): THREE.DataTexture {
+  const bands = new Uint8Array(4);
+  writeGradientBands(bands, shadowLift);
   const tex = new THREE.DataTexture(bands, bands.length, 1, THREE.RedFormat);
   tex.minFilter = THREE.NearestFilter;
   tex.magFilter = THREE.NearestFilter;
@@ -177,18 +288,17 @@ export function applyStorybookCelShading(
   root: THREE.Object3D,
   options: CelShadingOptions = {}
 ): CelShadingHandle {
-  const outlineColor = options.outlineColor ?? 0x4b3b30;
-  const outlineThickness = options.outlineThickness ?? 0.016;
-  const outlineOpacity = options.outlineOpacity ?? 0.82;
-  const grainStrength = options.grainStrength ?? 0.42;
-  const wobbleAmp = options.wobbleAmp ?? 0.45;
-  const wobbleFreq = options.wobbleFreq ?? 16.0;
+  const state: Required<CelShadingOptions> = {
+    ...DEFAULT_CEL_SHADING_OPTIONS,
+    ...options
+  };
 
-  const gradientMap = createStorybookGradientMap();
+  const gradientMap = createStorybookGradientMap(state.shadowLift);
   const ownedMaterials: THREE.Material[] = [];
   const ownedTextures: THREE.Texture[] = [gradientMap];
   const backups: MaterialBackup[] = [];
   const outlineMeshes: THREE.Mesh[] = [];
+  const outlineMaterials: THREE.ShaderMaterial[] = [];
   let convertedMaterialCount = 0;
 
   root.updateMatrixWorld(true);
@@ -200,7 +310,7 @@ export function applyStorybookCelShading(
     candidateMeshes.push(mesh);
   });
 
-  const colorVec = new THREE.Color(outlineColor);
+  const colorVec = new THREE.Color(state.outlineColor);
 
   for (const mesh of candidateMeshes) {
     const orig = mesh.material;
@@ -234,18 +344,20 @@ export function applyStorybookCelShading(
       }
     }
 
-    // Add inverted-hull soft pencil/chalk contour for static and skinned opaque meshes
+    // Add inverted-hull soft rounded pencil/chalk contour for static and skinned opaque meshes
     const isSkinned =
       mesh instanceof THREE.SkinnedMesh || Boolean((mesh as THREE.SkinnedMesh).isSkinnedMesh);
     if (hasOpaqueSurface && mesh.geometry) {
+      const outlineGeo = getSmoothOutlineGeometry(mesh.geometry);
       const outlineMat = new THREE.ShaderMaterial({
         uniforms: {
           uColor: { value: colorVec },
-          uThickness: { value: outlineThickness },
-          uOpacity: { value: outlineOpacity },
-          uGrainStrength: { value: grainStrength },
-          uWobbleAmp: { value: wobbleAmp },
-          uWobbleFreq: { value: wobbleFreq }
+          uThickness: { value: state.outlineThickness },
+          uOpacity: { value: state.outlineOpacity },
+          uRoundness: { value: state.roundness },
+          uGrainStrength: { value: state.grainStrength },
+          uWobbleAmp: { value: state.wobbleAmp },
+          uWobbleFreq: { value: state.wobbleFreq }
         },
         vertexShader: OUTLINE_VERTEX_SHADER,
         fragmentShader: OUTLINE_FRAGMENT_SHADER,
@@ -255,11 +367,12 @@ export function applyStorybookCelShading(
         depthTest: true
       });
       ownedMaterials.push(outlineMat);
+      outlineMaterials.push(outlineMat);
 
       let outlineMesh: THREE.Mesh;
       if (isSkinned) {
         const skinnedSrc = mesh as THREE.SkinnedMesh;
-        const skinnedOutline = new THREE.SkinnedMesh(mesh.geometry, outlineMat);
+        const skinnedOutline = new THREE.SkinnedMesh(outlineGeo, outlineMat);
         if (skinnedSrc.skeleton) {
           skinnedOutline.bind(skinnedSrc.skeleton, skinnedSrc.bindMatrix);
         }
@@ -274,7 +387,7 @@ export function applyStorybookCelShading(
         (mesh.parent ?? mesh).add(skinnedOutline);
         outlineMesh = skinnedOutline;
       } else {
-        outlineMesh = new THREE.Mesh(mesh.geometry, outlineMat);
+        outlineMesh = new THREE.Mesh(outlineGeo, outlineMat);
         mesh.add(outlineMesh);
       }
 
@@ -293,6 +406,25 @@ export function applyStorybookCelShading(
     ownedTextures,
     outlineCount: outlineMeshes.length,
     convertedMaterialCount,
+    updateOptions: (partial: CelShadingOptions) => {
+      if (restored) return;
+      Object.assign(state, partial);
+      colorVec.setHex(state.outlineColor);
+      for (const mat of outlineMaterials) {
+        mat.uniforms.uColor.value.copy(colorVec);
+        mat.uniforms.uThickness.value = state.outlineThickness;
+        mat.uniforms.uOpacity.value = state.outlineOpacity;
+        mat.uniforms.uRoundness.value = state.roundness;
+        mat.uniforms.uGrainStrength.value = state.grainStrength;
+        mat.uniforms.uWobbleAmp.value = state.wobbleAmp;
+        mat.uniforms.uWobbleFreq.value = state.wobbleFreq;
+      }
+      const data = gradientMap.image?.data as Uint8Array | undefined;
+      if (data && data.length >= 4) {
+        writeGradientBands(data, state.shadowLift);
+        gradientMap.needsUpdate = true;
+      }
+    },
     restore: () => {
       if (restored) return;
       restored = true;

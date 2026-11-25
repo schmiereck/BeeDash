@@ -1079,21 +1079,24 @@ function createHumanoidBoneDriver(
         break;
       }
       case 'sit_stargaze': {
-        applyCharEuler(bones.hips, -0.08, 0, 0);
+        hipHop = -18;
+        applyCharEuler(bones.hips, 0.04, 0, 0);
+        applyCharEuler(bones.spineLower, 0.04, 0, 0);
         applyCharEuler(bones.chest, 0, 0, Math.sin(t * 1.2) * 0.025);
-        applyCharEuler(bones.head, -0.22 + Math.sin(t * 1.1) * 0.05, Math.sin(t * 0.85) * 0.15, 0);
-        applyCharEuler(bones.leftUpLeg, -0.95, 0, 0);
-        applyCharEuler(bones.rightUpLeg, -0.95, 0, 0);
-        applyCharEuler(bones.leftLeg, 0.95, 0, 0);
-        applyCharEuler(bones.rightLeg, 0.95, 0, 0);
-        leftArmUp = -0.34;
-        rightArmUp = -0.34;
-        leftArmFwd = 0.22;
-        rightArmFwd = 0.22;
-        leftElbowUp = 0.2;
-        rightElbowUp = 0.2;
-        leftElbowFwd = 0.34;
-        rightElbowFwd = 0.34;
+        applyCharEuler(bones.head, -0.22 + Math.sin(t * 1.1) * 0.05, Math.sin(t * 0.85) * 0.16, 0);
+        const legSway = Math.sin(t * 1.9) * 0.05;
+        applyCharEuler(bones.leftUpLeg, -1.48, 0, 0);
+        applyCharEuler(bones.rightUpLeg, -1.48, 0, 0);
+        applyCharEuler(bones.leftLeg, 1.46 + legSway, 0, 0);
+        applyCharEuler(bones.rightLeg, 1.46 - legSway, 0, 0);
+        leftArmUp = -0.36;
+        rightArmUp = -0.36;
+        leftArmFwd = 0.28;
+        rightArmFwd = 0.28;
+        leftElbowUp = 0.28;
+        rightElbowUp = 0.28;
+        leftElbowFwd = 0.44;
+        rightElbowFwd = 0.44;
         break;
       }
     }

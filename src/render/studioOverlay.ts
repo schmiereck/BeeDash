@@ -2,7 +2,9 @@ import * as THREE from 'three';
 import { AssetFactory } from './assetFactory';
 import {
   applyStorybookCelShading,
-  CelShadingHandle
+  CelShadingHandle,
+  CelShadingOptions,
+  DEFAULT_CEL_SHADING_OPTIONS
 } from './celShading';
 import {
   buildStudioStageItem,
@@ -52,6 +54,8 @@ export class StudioOverlay {
   private animPaused = false;
   private autoRotate = true;
   private celShaded = true;
+  private celOptions: Required<CelShadingOptions> = { ...DEFAULT_CEL_SHADING_OPTIONS };
+  private mixerOpen = false;
   private elapsed = 0;
   private revealElapsed = 0;
 
@@ -90,6 +94,8 @@ export class StudioOverlay {
   private pauseBtnEl: HTMLButtonElement | null = null;
   private autoRotateBtnEl: HTMLButtonElement | null = null;
   private celBtnEl: HTMLButtonElement | null = null;
+  private mixerBtnEl: HTMLButtonElement | null = null;
+  private mixerPanelEl: HTMLElement | null = null;
 
   // Bound event listeners
   private boundPointerDown = (e: PointerEvent) => this.handlePointerDown(e);
@@ -156,12 +162,65 @@ export class StudioOverlay {
           <section class="studio-viewport">
             <div id="studio-context-bar" class="studio-context-bar"></div>
             <div id="studio-canvas-wrap" class="studio-canvas-wrap" title="Ziehen zum Drehen • Mausrad zum Zoomen"></div>
+            <aside id="studio-mixer-panel" class="studio-mixer-panel hidden" aria-label="Buch-Shader Mixer">
+              <div class="studio-mixer-header">
+                <span class="studio-mixer-title">🎛️ Buch-Shader Mixer</span>
+                <div class="studio-mixer-actions">
+                  <button id="studio-mixer-reset" class="studio-mixer-mini-btn" type="button" title="Standardwerte wiederherstellen">↺ Reset</button>
+                  <button id="studio-mixer-copy" class="studio-mixer-mini-btn" type="button" title="Aktuelle Shader-Werte kopieren">📋 Werte</button>
+                  <button id="studio-mixer-close" class="studio-mixer-mini-btn" type="button" aria-label="Mixer schließen">✖️</button>
+                </div>
+              </div>
+              <div class="studio-mixer-rows">
+                <label class="studio-mixer-row">
+                  <span class="studio-mixer-label">Kontur-Farbe</span>
+                  <input id="mix-color" type="color" class="studio-mixer-color" />
+                  <span id="mix-color-val" class="studio-mixer-val"></span>
+                </label>
+                <label class="studio-mixer-row">
+                  <span class="studio-mixer-label">Kontur-Stärke</span>
+                  <input id="mix-thickness" type="range" min="0" max="0.045" step="0.001" />
+                  <span id="mix-thickness-val" class="studio-mixer-val"></span>
+                </label>
+                <label class="studio-mixer-row">
+                  <span class="studio-mixer-label">Deckkraft</span>
+                  <input id="mix-opacity" type="range" min="0" max="1" step="0.02" />
+                  <span id="mix-opacity-val" class="studio-mixer-val"></span>
+                </label>
+                <label class="studio-mixer-row">
+                  <span class="studio-mixer-label">Abrundung</span>
+                  <input id="mix-roundness" type="range" min="0" max="1" step="0.02" />
+                  <span id="mix-roundness-val" class="studio-mixer-val"></span>
+                </label>
+                <label class="studio-mixer-row">
+                  <span class="studio-mixer-label">Bleistift-Körnung</span>
+                  <input id="mix-grain" type="range" min="0" max="1" step="0.02" />
+                  <span id="mix-grain-val" class="studio-mixer-val"></span>
+                </label>
+                <label class="studio-mixer-row">
+                  <span class="studio-mixer-label">Strich-Unruhe</span>
+                  <input id="mix-wobble" type="range" min="0" max="1" step="0.02" />
+                  <span id="mix-wobble-val" class="studio-mixer-val"></span>
+                </label>
+                <label class="studio-mixer-row">
+                  <span class="studio-mixer-label">Strich-Frequenz</span>
+                  <input id="mix-freq" type="range" min="4" max="36" step="1" />
+                  <span id="mix-freq-val" class="studio-mixer-val"></span>
+                </label>
+                <label class="studio-mixer-row">
+                  <span class="studio-mixer-label">Schatten-Tiefe</span>
+                  <input id="mix-shadow" type="range" min="0.2" max="0.9" step="0.02" />
+                  <span id="mix-shadow-val" class="studio-mixer-val"></span>
+                </label>
+              </div>
+            </aside>
             <div class="studio-bottom-bar">
               <div id="studio-item-desc" class="studio-item-desc"></div>
               <div class="studio-controls-row">
                 <button id="studio-pause-btn" class="studio-pill-btn" type="button">⏸️ Pause</button>
                 <button id="studio-autorotate-btn" class="studio-pill-btn active" type="button">🔁 Auto-Drehen: An</button>
                 <button id="studio-cel-btn" class="studio-pill-btn active" type="button">🖍️ Buch-Stil: An</button>
+                <button id="studio-mixer-btn" class="studio-pill-btn" type="button">🎛️ Shader-Mixer</button>
                 <button id="studio-zoom-out" class="studio-pill-btn" type="button" aria-label="Herauszoomen">➖</button>
                 <button id="studio-zoom-in" class="studio-pill-btn" type="button" aria-label="Heranzoomen">➕</button>
                 <button id="studio-reset-view" class="studio-pill-btn" type="button">🎯 Ansicht zurücksetzen</button>
@@ -183,6 +242,8 @@ export class StudioOverlay {
     this.pauseBtnEl = this.root.querySelector('#studio-pause-btn');
     this.autoRotateBtnEl = this.root.querySelector('#studio-autorotate-btn');
     this.celBtnEl = this.root.querySelector('#studio-cel-btn');
+    this.mixerBtnEl = this.root.querySelector('#studio-mixer-btn');
+    this.mixerPanelEl = this.root.querySelector('#studio-mixer-panel');
 
     this.root.querySelector('#studio-close-btn')?.addEventListener('click', () => {
       this.close();
@@ -204,6 +265,14 @@ export class StudioOverlay {
       this.syncPlaybackButtons();
       this.renderFrame();
     });
+
+    this.mixerBtnEl?.addEventListener('click', () => {
+      this.mixerOpen = !this.mixerOpen;
+      this.mixerPanelEl?.classList.toggle('hidden', !this.mixerOpen);
+      this.syncPlaybackButtons();
+    });
+
+    this.wireShaderMixerControls();
 
     this.root.querySelector('#studio-zoom-out')?.addEventListener('click', () => {
       this.adjustZoom(0.45);
@@ -490,8 +559,115 @@ export class StudioOverlay {
     this.celHandle?.restore();
     this.celHandle = null;
     if (this.celShaded && this.instance) {
-      this.celHandle = applyStorybookCelShading(this.instance.root);
+      this.celHandle = applyStorybookCelShading(this.instance.root, this.celOptions);
     }
+  }
+
+  private wireShaderMixerControls(): void {
+    const syncUiFromOptions = (): void => {
+      const hex = `#${this.celOptions.outlineColor.toString(16).padStart(6, '0')}`;
+      const colorInput = this.root.querySelector('#mix-color') as HTMLInputElement | null;
+      const colorVal = this.root.querySelector('#mix-color-val');
+      if (colorInput) colorInput.value = hex;
+      if (colorVal) colorVal.textContent = hex;
+
+      const sliders: Array<[string, number, number]> = [
+        ['thickness', this.celOptions.outlineThickness, 3],
+        ['opacity', this.celOptions.outlineOpacity, 2],
+        ['roundness', this.celOptions.roundness, 2],
+        ['grain', this.celOptions.grainStrength, 2],
+        ['wobble', this.celOptions.wobbleAmp, 2],
+        ['freq', this.celOptions.wobbleFreq, 0],
+        ['shadow', this.celOptions.shadowLift, 2]
+      ];
+      for (const [id, val, digits] of sliders) {
+        const input = this.root.querySelector(`#mix-${id}`) as HTMLInputElement | null;
+        const valEl = this.root.querySelector(`#mix-${id}-val`);
+        if (input) input.value = String(val);
+        if (valEl) valEl.textContent = val.toFixed(digits);
+      }
+    };
+
+    const applyLiveChange = (): void => {
+      if (!this.celShaded) {
+        this.celShaded = true;
+        this.applyCelShadingMode();
+        this.syncPlaybackButtons();
+      } else {
+        this.celHandle?.updateOptions(this.celOptions);
+      }
+      this.renderFrame();
+    };
+
+    syncUiFromOptions();
+
+    const colorInput = this.root.querySelector('#mix-color') as HTMLInputElement | null;
+    colorInput?.addEventListener('input', () => {
+      const parsed = Number.parseInt(colorInput.value.replace('#', ''), 16);
+      if (Number.isFinite(parsed)) {
+        this.celOptions.outlineColor = parsed;
+        syncUiFromOptions();
+        applyLiveChange();
+      }
+    });
+
+    const sliderBindings: Array<[string, keyof CelShadingOptions]> = [
+      ['thickness', 'outlineThickness'],
+      ['opacity', 'outlineOpacity'],
+      ['roundness', 'roundness'],
+      ['grain', 'grainStrength'],
+      ['wobble', 'wobbleAmp'],
+      ['freq', 'wobbleFreq'],
+      ['shadow', 'shadowLift']
+    ];
+    for (const [id, key] of sliderBindings) {
+      const input = this.root.querySelector(`#mix-${id}`) as HTMLInputElement | null;
+      input?.addEventListener('input', () => {
+        const num = Number.parseFloat(input.value);
+        if (Number.isFinite(num)) {
+          this.celOptions[key] = num;
+          syncUiFromOptions();
+          applyLiveChange();
+        }
+      });
+    }
+
+    this.root.querySelector('#studio-mixer-reset')?.addEventListener('click', () => {
+      this.celOptions = { ...DEFAULT_CEL_SHADING_OPTIONS };
+      syncUiFromOptions();
+      applyLiveChange();
+    });
+
+    const copyBtn = this.root.querySelector('#studio-mixer-copy') as HTMLButtonElement | null;
+    copyBtn?.addEventListener('click', () => {
+      const payload = JSON.stringify(
+        {
+          outlineColor: `#${this.celOptions.outlineColor.toString(16).padStart(6, '0')}`,
+          outlineThickness: this.celOptions.outlineThickness,
+          outlineOpacity: this.celOptions.outlineOpacity,
+          roundness: this.celOptions.roundness,
+          grainStrength: this.celOptions.grainStrength,
+          wobbleAmp: this.celOptions.wobbleAmp,
+          wobbleFreq: this.celOptions.wobbleFreq,
+          shadowLift: this.celOptions.shadowLift
+        },
+        null,
+        2
+      );
+      void navigator.clipboard?.writeText(payload).catch(() => {});
+      copyBtn.textContent = '✅ Kopiert!';
+      window.setTimeout(() => {
+        if (this.active && copyBtn) copyBtn.textContent = '📋 Werte';
+      }, 1400);
+    });
+
+    this.root.querySelector('#studio-mixer-close')?.addEventListener('click', () => {
+      this.mixerOpen = false;
+      this.mixerPanelEl?.classList.add('hidden');
+      this.syncPlaybackButtons();
+    });
+
+    this.mixerPanelEl?.classList.toggle('hidden', !this.mixerOpen);
   }
 
   private renderContextBar(): void {
@@ -680,6 +856,9 @@ export class StudioOverlay {
         : '🖍️ Buch-Stil: Aus';
       this.celBtnEl.classList.toggle('active', this.celShaded);
     }
+    if (this.mixerBtnEl) {
+      this.mixerBtnEl.classList.toggle('active', this.mixerOpen);
+    }
   }
 
   private resetCameraToItem(spec: StudioItemSpec): void {
@@ -823,5 +1002,7 @@ export class StudioOverlay {
     this.pauseBtnEl = null;
     this.autoRotateBtnEl = null;
     this.celBtnEl = null;
+    this.mixerBtnEl = null;
+    this.mixerPanelEl = null;
   }
 }

@@ -165,6 +165,21 @@ describe('BeeDash 3D-Atelier Katalog & Builder', () => {
     expect(outlineMat.depthWrite).toBe(false);
     expect(outlineMat.uniforms.uOpacity.value).toBeLessThan(1);
     expect(outlineMat.uniforms.uGrainStrength.value).toBeGreaterThan(0);
+    expect(outlineChild!.geometry.getAttribute('aSmoothNormal')).toBeDefined();
+
+    handle.updateOptions({
+      outlineColor: 0x223344,
+      outlineThickness: 0.024,
+      outlineOpacity: 0.6,
+      roundness: 0.9,
+      shadowLift: 0.35
+    });
+    expect(outlineMat.uniforms.uColor.value.getHex()).toBe(0x223344);
+    expect(outlineMat.uniforms.uThickness.value).toBeCloseTo(0.024, 5);
+    expect(outlineMat.uniforms.uOpacity.value).toBeCloseTo(0.6, 5);
+    expect(outlineMat.uniforms.uRoundness.value).toBeCloseTo(0.9, 5);
+    const toonMat = mesh.material as unknown as THREE.MeshToonMaterial;
+    expect((toonMat.gradientMap!.image.data as Uint8Array)[0]).toBe(Math.round(0.35 * 255));
 
     handle.restore();
     expect(mesh.material).toBe(bodyMat);
