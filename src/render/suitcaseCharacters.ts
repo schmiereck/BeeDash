@@ -884,19 +884,241 @@ function animateProceduralRig(rig: CharacterRig, t: number, pose: CharacterPose)
   }
 }
 
-export function createStageCharacter(assets: AssetFactory, key: CharacterKey): AnimatedCharacter {
-  const custom = assets.createCharacterModel(key);
+type BoneRestEntry = {
+  bone: THREE.Bone;
+  restLocalQuat: THREE.Quaternion;
+  restRelInv: THREE.Quaternion;
+};
+
+type HumanoidBones = {
+  hips?: BoneRestEntry;
+  spineLower?: BoneRestEntry;
+  chest?: BoneRestEntry;
+  neck?: BoneRestEntry;
+  head?: BoneRestEntry;
+  leftShoulder?: BoneRestEntry;
+  leftArm?: BoneRestEntry;
+  leftForeArm?: BoneRestEntry;
+  rightShoulder?: BoneRestEntry;
+  rightArm?: BoneRestEntry;
+  rightForeArm?: BoneRestEntry;
+  leftUpLeg?: BoneRestEntry;
+  leftLeg?: BoneRestEntry;
+  rightUpLeg?: BoneRestEntry;
+  rightLeg?: BoneRestEntry;
+};
+
+const CHAR_AXIS_X = new THREE.Vector3(1, 0, 0);
+const CHAR_AXIS_Y = new THREE.Vector3(0, 1, 0);
+const CHAR_AXIS_Z = new THREE.Vector3(0, 0, 1);
+
+function findHumanoidBone(
+  byName: Map<string, BoneRestEntry>,
+  patterns: RegExp[]
+): BoneRestEntry | undefined {
+  for (const re of patterns) {
+    for (const [name, entry] of byName) {
+      if (re.test(name)) return entry;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Drives pose animations on rigged humanoid GLB skeletons that lack authored
+ * multi-frame animation clips by applying character-space joint deltas relative
+ * to the captured bind pose.
+ */
+function createHumanoidBoneDriver(
+  root: THREE.Object3D
+): ((t: number, pose: CharacterPose) => void) | null {
+  root.updateMatrixWorld(true);
+  const rootWorldInv = new THREE.Quaternion();
+  root.getWorldQuaternion(rootWorldInv);
+  rootWorldInv.invert();
+
+  const byName = new Map<string, BoneRestEntry>();
+  root.traverse((obj) => {
+    if ((obj as THREE.Bone).isBone && obj.name) {
+      const worldQ = new THREE.Quaternion();
+      obj.getWorldQuaternion(worldQ);
+      const restRel = rootWorldInv.clone().multiply(worldQ);
+      byName.set(obj.name.toLowerCase(), {
+        bone: obj as THREE.Bone,
+        restLocalQuat: obj.quaternion.clone(),
+        restRelInv: restRel.invert()
+      });
+    }
+  });
+
+  const bones: HumanoidBones = {
+    hips: findHumanoidBone(byName, [/^hips$/, /^pelvis$/]),
+    spineLower: findHumanoidBone(byName, [/^spine02$/, /^spine_01$/, /^spine1$/]),
+    chest: findHumanoidBone(byName, [/^spine$/, /^chest$/, /^spine2$/]),
+    neck: findHumanoidBone(byName, [/^neck$/]),
+    head: findHumanoidBone(byName, [/^head$/]),
+    leftShoulder: findHumanoidBone(byName, [/^leftshoulder$/, /shoulder.*l$/]),
+    leftArm: findHumanoidBone(byName, [/^leftarm$/, /^leftupperarm$/, /upperarm.*l$/]),
+    leftForeArm: findHumanoidBone(byName, [/^leftforearm$/, /^leftlowerarm$/, /forearm.*l$/]),
+    rightShoulder: findHumanoidBone(byName, [/^rightshoulder$/, /shoulder.*r$/]),
+    rightArm: findHumanoidBone(byName, [/^rightarm$/, /^rightupperarm$/, /upperarm.*r$/]),
+    rightForeArm: findHumanoidBone(byName, [/^rightforearm$/, /^rightlowerarm$/, /forearm.*r$/]),
+    leftUpLeg: findHumanoidBone(byName, [/^leftupleg$/, /^leftthigh$/, /thigh.*l$/]),
+    leftLeg: findHumanoidBone(byName, [/^leftleg$/, /^leftshin$/, /shin.*l$/]),
+    rightUpLeg: findHumanoidBone(byName, [/^rightupleg$/, /^rightthigh$/, /thigh.*r$/]),
+    rightLeg: findHumanoidBone(byName, [/^rightleg$/, /^rightshin$/, /shin.*r$/])
+  };
+
+  const allEntries = Object.values(bones).filter((e): e is BoneRestEntry => Boolean(e));
+  if (allEntries.length < 4) return null;
+
+  const baseHipsPos = bones.hips ? bones.hips.bone.position.clone() : null;
+  const localAxis = new THREE.Vector3();
+  const deltaQ = new THREE.Quaternion();
+
+  const rotateBone = (
+    entry: BoneRestEntry | undefined,
+    charAxis: THREE.Vector3,
+    angle: number
+  ): void => {
+    if (!entry || Math.abs(angle) < 1e-5) return;
+    localAxis.copy(charAxis).applyQuaternion(entry.restRelInv).normalize();
+    deltaQ.setFromAxisAngle(localAxis, angle);
+    entry.bone.quaternion.multiply(deltaQ);
+  };
+
+  return (t: number, pose: CharacterPose): void => {
+    for (const entry of allEntries) {
+      entry.bone.quaternion.copy(entry.restLocalQuat);
+    }
+    if (bones.hips && baseHipsPos) {
+      bones.hips.bone.position.copy(baseHipsPos);
+    }
+
+    // Bring A-pose arms gently down toward natural resting posture unless raised
+    let leftArmUp = -0.32;
+    let leftArmFwd = 0.08;
+    let leftElbowBend = 0.22;
+    let rightArmUp = -0.32;
+    let rightArmFwd = 0.08;
+    let rightElbowBend = 0.22;
+    let hipHop = 0;
+
+    switch (pose) {
+      case 'wave': {
+        hipHop = Math.abs(Math.sin(t * 2.4)) * 1.4;
+        rotateBone(bones.chest, CHAR_AXIS_Z, Math.sin(t * 2.0) * 0.04);
+        rotateBone(bones.head, CHAR_AXIS_Z, Math.sin(t * 1.8) * 0.08);
+        rotateBone(bones.head, CHAR_AXIS_Y, Math.sin(t * 1.2) * 0.12);
+        leftArmUp = -0.42 + Math.sin(t * 2.2) * 0.05;
+        rightArmUp = 1.65 + Math.sin(t * 6.0) * 0.28;
+        rightArmFwd = 0.25;
+        rightElbowBend = 0.55 + Math.sin(t * 6.0) * 0.22;
+        break;
+      }
+      case 'cheer': {
+        const hop = Math.abs(Math.sin(t * 4.4));
+        hipHop = hop * 4.5;
+        rotateBone(bones.chest, CHAR_AXIS_Z, Math.sin(t * 2.2) * 0.06);
+        rotateBone(bones.head, CHAR_AXIS_Z, Math.sin(t * 3.0) * 0.09);
+        leftArmUp = 1.62 + Math.sin(t * 5.4) * 0.22;
+        rightArmUp = 1.62 + Math.sin(t * 5.4) * 0.22;
+        leftArmFwd = 0.2;
+        rightArmFwd = 0.2;
+        leftElbowBend = 0.35;
+        rightElbowBend = 0.35;
+        rotateBone(bones.leftUpLeg, CHAR_AXIS_X, -hop * 0.2);
+        rotateBone(bones.leftLeg, CHAR_AXIS_X, hop * 0.28);
+        rotateBone(bones.rightUpLeg, CHAR_AXIS_X, hop * 0.14);
+        break;
+      }
+      case 'sip_tea': {
+        hipHop = Math.sin(t * 2.0) * 0.8;
+        rotateBone(bones.chest, CHAR_AXIS_Z, Math.sin(t * 1.6) * 0.04);
+        rotateBone(bones.head, CHAR_AXIS_X, 0.08 + Math.sin(t * 2.4) * 0.07);
+        rotateBone(bones.head, CHAR_AXIS_Y, Math.sin(t * 1.3) * 0.12);
+        rightArmUp = -0.22;
+        rightArmFwd = 0.72 + Math.sin(t * 2.6) * 0.18;
+        rightElbowBend = 1.05 + Math.sin(t * 2.6) * 0.22;
+        leftArmUp = -0.45;
+        break;
+      }
+      case 'fly_umbrella': {
+        rotateBone(bones.spineLower, CHAR_AXIS_X, 0.09 + Math.sin(t * 2.3) * 0.05);
+        rotateBone(bones.head, CHAR_AXIS_X, -0.1 + Math.sin(t * 2.0) * 0.05);
+        leftArmUp = 1.52;
+        rightArmUp = 1.52;
+        leftArmFwd = 0.55;
+        rightArmFwd = 0.55;
+        leftElbowBend = 0.45;
+        rightElbowBend = 0.45;
+        rotateBone(bones.leftUpLeg, CHAR_AXIS_X, Math.sin(t * 3.6) * 0.24 - 0.08);
+        rotateBone(bones.rightUpLeg, CHAR_AXIS_X, -Math.sin(t * 3.6) * 0.24 - 0.08);
+        rotateBone(bones.leftLeg, CHAR_AXIS_X, 0.22 + Math.max(0, Math.sin(t * 3.6)) * 0.2);
+        rotateBone(bones.rightLeg, CHAR_AXIS_X, 0.22 + Math.max(0, -Math.sin(t * 3.6)) * 0.2);
+        break;
+      }
+      case 'blow_bubbles': {
+        rotateBone(bones.chest, CHAR_AXIS_Z, -0.04 + Math.sin(t * 1.9) * 0.04);
+        rotateBone(bones.head, CHAR_AXIS_Y, -0.16 + Math.sin(t * 1.7) * 0.1);
+        rotateBone(bones.head, CHAR_AXIS_X, -0.1);
+        leftArmUp = -0.12;
+        leftArmFwd = 0.68 + Math.sin(t * 1.9) * 0.22;
+        leftElbowBend = 0.92;
+        rightArmUp = -0.25 + Math.sin(t * 2.5) * 0.12;
+        break;
+      }
+      case 'sit_stargaze': {
+        rotateBone(bones.hips, CHAR_AXIS_X, -0.08);
+        rotateBone(bones.chest, CHAR_AXIS_Z, Math.sin(t * 1.2) * 0.025);
+        rotateBone(bones.head, CHAR_AXIS_X, -0.22 + Math.sin(t * 1.1) * 0.05);
+        rotateBone(bones.head, CHAR_AXIS_Y, Math.sin(t * 0.85) * 0.15);
+        rotateBone(bones.leftUpLeg, CHAR_AXIS_X, -Math.PI * 0.36);
+        rotateBone(bones.rightUpLeg, CHAR_AXIS_X, -Math.PI * 0.36);
+        rotateBone(bones.leftLeg, CHAR_AXIS_X, Math.PI * 0.38);
+        rotateBone(bones.rightLeg, CHAR_AXIS_X, Math.PI * 0.38);
+        leftArmUp = -0.38;
+        rightArmUp = -0.38;
+        leftArmFwd = 0.22;
+        rightArmFwd = 0.22;
+        leftElbowBend = 0.42;
+        rightElbowBend = 0.42;
+        break;
+      }
+    }
+
+    if (bones.hips && baseHipsPos && hipHop !== 0) {
+      bones.hips.bone.position.y = baseHipsPos.y + hipHop;
+    }
+    rotateBone(bones.leftArm, CHAR_AXIS_Z, leftArmUp);
+    rotateBone(bones.leftArm, CHAR_AXIS_Y, -leftArmFwd);
+    rotateBone(bones.leftForeArm, CHAR_AXIS_Y, -leftElbowBend);
+    rotateBone(bones.rightArm, CHAR_AXIS_Z, -rightArmUp);
+    rotateBone(bones.rightArm, CHAR_AXIS_Y, rightArmFwd);
+    rotateBone(bones.rightForeArm, CHAR_AXIS_Y, rightElbowBend);
+  };
+}
+
+export function createStageCharacter(
+  assets: AssetFactory,
+  key: CharacterKey,
+  customAssetKey?: string
+): AnimatedCharacter {
+  const custom = assets.createCharacterModel(customAssetKey ?? key);
   if (custom) {
     const { object, animations } = custom;
+    const playableAnimations = animations.filter((clip) => clip.duration > 0.1);
     let mixer: THREE.AnimationMixer | null = null;
-    if (animations.length > 0) {
+    if (playableAnimations.length > 0) {
       mixer = new THREE.AnimationMixer(object);
       const preferred =
-        animations.find((clip) => /wave|cheer|idle|dance|happy/i.test(clip.name)) ?? animations[0];
+        playableAnimations.find((clip) => /wave|cheer|idle|dance|happy/i.test(clip.name)) ??
+        playableAnimations[0];
       mixer.clipAction(preferred).play();
     }
 
     const inner = object;
+    const boneDriver = mixer ? null : createHumanoidBoneDriver(inner);
     return {
       root: inner,
       ownedMaterials: [],
@@ -905,6 +1127,8 @@ export function createStageCharacter(assets: AssetFactory, key: CharacterKey): A
       update: (t, dt, pose) => {
         if (mixer) {
           mixer.update(dt);
+        } else if (boneDriver) {
+          boneDriver(t, pose);
         } else {
           // Subtle lifelike motion for static imported .glb meshes
           inner.rotation.z = pose === 'cheer' ? Math.sin(t * 3.8) * 0.06 : Math.sin(t * 1.8) * 0.03;

@@ -6,6 +6,8 @@
     "bee_higgsfield": "assets/models/biene_higgsfield.glb",
     "bee_higgsfield_v2": "assets/models/biene_higgsfield_v2.glb"
   },
-  "characters": {},
+  "characters": {
+    "frau_honig_higgsfield": "assets/models/frau_honig_higgsfield.glb"
+  },
   "audio": {}
 }

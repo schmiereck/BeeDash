@@ -33,6 +33,7 @@ export interface StudioItemSpec {
   defaultPitch: number;
   pedestalRadius: number;
   characterKey?: CharacterKey;
+  customCharacterAssetKey?: string;
   isBee?: boolean;
   sceneIndex?: number;
   toggleKind?: 'bowl' | 'plate' | 'suitcase';
@@ -406,6 +407,23 @@ export const STUDIO_ITEMS: StudioItemSpec[] = [
     characterKey: 'frau_honig'
   },
   {
+    id: 'frau_honig_higgsfield',
+    category: 'characters',
+    emoji: '✨',
+    label: 'Frau Honig (Higgsfield 3D)',
+    description:
+      'Aus dem orthographischen 3-Ansichten-Turnaround mit Higgsfield erzeugte und geriggte 3D-Frau-Honig (.glb) zum direkten Vergleich.',
+    defaultRadius: 3.4,
+    minRadius: 1.6,
+    maxRadius: 6.5,
+    targetY: 0.85,
+    defaultYaw: 0.38,
+    defaultPitch: 0.25,
+    pedestalRadius: 1.45,
+    characterKey: 'frau_honig',
+    customCharacterAssetKey: 'frau_honig_higgsfield'
+  },
+  {
     id: 'child_girl',
     category: 'characters',
     emoji: '👧',
@@ -583,7 +601,7 @@ export function buildStudioStageItem(
   const mixers: THREE.AnimationMixer[] = [];
 
   if (item.characterKey) {
-    const ch = createStageCharacter(assets, item.characterKey);
+    const ch = createStageCharacter(assets, item.characterKey, item.customCharacterAssetKey);
     ch.root.scale.setScalar(1.45);
     ownedMaterials.push(...ch.ownedMaterials);
     if (ch.mixer) mixers.push(ch.mixer);
